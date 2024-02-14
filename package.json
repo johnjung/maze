@@ -1,0 +1,22 @@
+{
+  "dependencies": {
+    "mocha": "^10.3.0",
+    "unit.js": "^2.1.1",
+    "webpack": "^5.90.1",
+    "webpack-cli": "^5.1.4"
+  },
+  "name": "2",
+  "description": "Run tests:",
+  "version": "1.0.0",
+  "main": "hello.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "start": "webpack --devtool source-map --mode development",
+    "test": "mocha"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

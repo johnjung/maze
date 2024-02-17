@@ -1,5 +1,6 @@
 const maze = require('./maze');
 
+/*
 document.onkeydown = function(e) {
     e = e || window.event;
     switch (e.keyCode) {
@@ -19,12 +20,13 @@ document.onkeydown = function(e) {
     m.render_to_svg(document.querySelector('svg'));
     m.print_to_console();
 }
+*/
 
-let m = new maze.HexMaze(3, 3);
+let m = new maze.TriMaze(7, 4);
 //m.binary_tree();
 m.aldous_broder();
 //m.sidewinder();
 //m.recursive_backtracker();
 //m.wilson();
 m.print_to_console();
-m.render_to_svg(document.querySelector('svg'));
+m.render_to_svg_2d(document.querySelector('svg'));

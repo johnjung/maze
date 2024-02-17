@@ -238,6 +238,49 @@ class Cell {
     }
 }
 
+class TriCell extends Cell {
+    constructor(y, x) {
+        super();
+        this.y = y;
+        this.x = x;
+        this.ne = null;
+        this.n = null;
+        this.nw = null;
+        this.se = null;
+        this.s = null;
+        this.sw = null;
+        this.links = new Set();
+    }
+
+    get_neighbors() {
+        return [this.ne, this.n, this.nw, this.sw, this.s, this.se].filter((i) => i != null);
+    }
+
+    l(d) {
+        if (this.x % 2 == 0) {
+            return [this.n, this.sw, this.se][d];
+        } else {
+            return [this.ne, this.nw, this.s][d];
+        }
+    }
+
+    f(d) {
+        if (this.x % 2 == 0) {
+            return [this.se, this.n, this.sw][d];
+        } else {
+            return [this.s, this.ne, this.nw][d];
+        }
+    }
+
+    r(d) {
+        if (this.x % 2 == 0) {
+            return [this.sw, this.se, this.n][d];
+        } else {
+            return [this.nw, this.s, this.ne][d];
+        }
+    }
+}
+
 class SquareCell extends Cell {
     constructor(y, x) {
         super();
@@ -487,21 +530,24 @@ class Maze {
     aldous_broder() {
         let visited = Array(this.width * this.height).fill(false);
   
-        let y = Math.floor(Math.random() * (this.height));
-        let x = Math.floor(Math.random() * (this.width));
-        let c = this.cells[(y * this.width) + x];
+        let c = this.cells[Math.floor(Math.random() * this.width * this.height)];
         let n = null, neighbors = [];
+
+        var i = 0;
 
         do {
             visited[c.y * this.width + c.x] = true;
             neighbors = c.get_neighbors();
-            do {
-                n = neighbors[Math.floor(Math.random() * neighbors.length)];
-            } while (n == null);
+            n = neighbors[Math.floor(Math.random() * neighbors.length)];
             if (visited[n.y * this.width + n.x] == false) {
                 c.link(n);
             }
             c = n;
+
+            i++;
+            if (i > 1000) {
+                return;
+            }
         } while (visited.indexOf(false) > -1);
     }
 
@@ -671,6 +717,347 @@ class Maze {
         }
     }
             
+}
+
+class TriMaze extends Maze {
+    constructor(width, height) {
+        super();
+        this.width = width;
+        this.height = height;
+        this.cells = [];
+
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                this.cells.push(new TriCell(y, x));
+            }
+        }
+
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                // ne
+                if (x % 2 == 1 && x < this.width - 1) {
+                    this.cells[y * this.width + x].ne = this.cells[y * this.width + x + 1];
+                }
+                // n
+                if (x % 2 == 0 && y < (this.height - 1) && x < (this.width - 1)) {
+                    this.cells[y * this.width + x].n = this.cells[(y + 1) * this.width + x + 1];
+                }
+                // nw
+                if (x % 2 == 1 && x > 0) {
+                    this.cells[y * this.width + x].nw = this.cells[y * this.width + (x - 1)];
+                }
+                // sw 
+                if (x % 2 == 0 && x > 0) {
+                    this.cells[y * this.width + x].sw = this.cells[y * this.width + (x - 1)];
+                }
+                // s
+                if (x % 2 == 1 && y > 0 && x > 0) {
+                    this.cells[y * this.width + x].s = this.cells[(y - 1) * this.width + (x - 1)];
+                }
+                // se
+                if (x % 2 == 0 && x < (this.width - 1)) {
+                    this.cells[y * this.width + x].se = this.cells[y * this.width + (x + 1)];
+                }
+            }
+        }
+
+        this.current_cell = this.cells[0];
+        this.direction = 1;
+    }
+
+    turn(d) {
+        this.direction += d;
+        while (this.direction < 0) {
+            this.direction += 3;
+        }
+        while (this.direction > 2) {
+            this.direction -= 3;
+        }
+    }
+
+    move_forward() {
+        if (this.direction == 0) {
+            if (x % 2 == 0) {
+                if (this.current_cell.is_linked_to(this.current_cell.se)) {
+                    this.current_cell = this.current_cell.se;
+                }
+            } else {
+                if (this.current_cell.is_linked_to(this.current_cell.ne)) {
+                    this.current_cell = this.current_cell.ne;
+                }
+            }
+        } else if (this.direction == 1) {
+            if (x % 2 == 0) {
+                if (this.current_cell.is_linked_to(this.current_cell.n)) {
+                    this.current_cell = this.current_cell.n;
+                }
+            } else {
+                if (this.current_cell.is_linked_to(this.current_cell.ne)) {
+                    this.current_cell = this.current_cell.ne;
+                }
+            }
+        } else if (this.direction == 2) {
+            if (x % 2 == 0) {
+                if (this.current_cell.is_linked_to(this.current_cell.n)) {
+                    this.current_cell = this.current_cell.n;
+                }
+            } else {
+                if (this.current_cell.is_linked_to(this.current_cell.nw)) {
+                    this.current_cell = this.current_cell.nw;
+                }
+            }
+        }
+    }
+
+    print_to_console() {
+        let output_grid = [];
+        var cx, cy, c;
+
+        for (let y = 0; y < (this.height * 2 + 1); y++) {
+            var row = [];
+            for (let x = 0; x < ((this.width * 2 + 3) + ((this.height - 1) * 2)); x++) {
+                row.push(' ');
+            }
+            output_grid.push(row);
+        }
+
+        // draw all walls 
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                cx = (x * 2 + 2) + ((this.height - 1 - y + 1) * 2 - 2);
+                cy = this.height * 2 - 1 - (y * 2);
+
+                if (x % 2 == 0) {
+                    output_grid[cy - 1][cx - 2] = 'x';
+                    output_grid[cy - 1][cx - 1] = '-';
+                    output_grid[cy - 1][cx    ] = '-';
+                    output_grid[cy - 1][cx + 1] = '-';
+                    output_grid[cy - 1][cx + 2] = 'x';
+                    output_grid[cy    ][cx - 1] = '\\';
+                    output_grid[cy    ][cx + 1] = '/';
+                    output_grid[cy + 1][cx    ] = 'x';
+                } else {
+                    output_grid[cy - 1][cx    ] = 'x';
+                    output_grid[cy    ][cx - 1] = '/';
+                    output_grid[cy    ][cx + 1] = '\\';
+                    output_grid[cy + 1][cx - 2] = 'x';
+                    output_grid[cy + 1][cx - 1] = '-';
+                    output_grid[cy + 1][cx    ] = '-';
+                    output_grid[cy + 1][cx + 1] = '-';
+                    output_grid[cy + 1][cx + 2] = 'x';
+                }
+                if (y == this.current_cell.y && x == this.current_cell.x) {
+                    output_grid[cy][cx] = 'o';
+                }
+            }
+        }
+
+        // erase walls where there are links. 
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                cx = (x * 2 + 2) + ((this.height - 1 - y + 1) * 2 - 2);
+                cy = this.height * 2 - 1 - (y * 2);
+                c = this.cells[y * this.width + x];
+                if (c.links.has(c.ne)) {
+                    output_grid[cy][cx + 1] = ' ';
+                }
+                if (c.links.has(c.n)) {
+                    output_grid[cy - 1][cx - 1] = ' ';
+                    output_grid[cy - 1][cx    ] = ' ';
+                    output_grid[cy - 1][cx + 1] = ' ';
+                }
+                if (c.links.has(c.nw)) {
+                    output_grid[cy][cx - 1] = ' ';
+                }
+                if (c.links.has(c.sw)) {
+                    output_grid[cy][cx - 1] = ' ';
+                }
+                if (c.links.has(c.s)) {
+                    output_grid[cy + 1][cx - 1] = ' ';
+                    output_grid[cy + 1][cx    ] = ' ';
+                    output_grid[cy + 1][cx + 1] = ' ';
+                }
+                if (c.links.has(c.se)) {
+                    output_grid[cy][cx + 1] = ' ';
+                }
+            }
+        }
+
+        // output grid
+        for (let y = 0; y < output_grid.length; y++) {
+            console.log(output_grid[y].join(''));
+        }
+    }
+    get_world() {
+        // triangle edge length.
+        let h = Math.sqrt(1 + Math.pow(0.5, 2));
+  
+        var world = [];
+
+        var c, n, cx, cx1, cx2, cy, cy1, cy2, line, circle;
+        var start, end, x_min;
+
+        // s
+        for (var y = 0; y < this.height; y++) {
+            start = null;
+            end = null;
+            for (var x = 1; x < this.width; x += 2) {
+                c = this.cells[y * this.width + x];
+                if (x < this.width - 2) {
+                    n = this.cells[y * this.width + x + 2];
+                } else {
+                    n = null;
+                }
+                if (start == null && !c.links.has(c.s)) {
+                    start = x;
+                }
+                if (start != null && (n == null || n.links.has(n.s))) {
+                    end = x;
+                }
+                if (start != null && end != null) {
+                    cx1 = ((start / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+                    cx2 = ((end   / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+                    cy = ((this.height - 1) / 2) - y;
+                    world.push([cx1 - (.5 * h), cy + .5, cx2 + (.5 * h), cy + .5]);
+                    start = null;
+                    end = null;
+                }
+            }
+        }
+
+        // n
+        for (var y = 0; y < this.height; y++) {
+            start = null;
+            end = null;
+            if (y < this.height - 1) {
+                if (this.width % 2 == 0) {
+                    x_min = this.width;
+                } else {
+                    x_min = this.width - 1;
+                }
+            } else {
+                x_min = 0;
+            }
+            for (var x = x_min; x < this.width; x += 2) {
+                c = this.cells[y * this.width + x];
+                if (start == null && !c.links.has(c.n)) {
+                    start = x;
+                }
+                if (start != null && (c.links.has(c.n) || x >= this.width - 2)) {
+                    end = x;
+                }
+                if (start != null && end != null) {
+                    cx1 = ((start / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+                    cx2 = ((end   / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+                    cy = ((this.height - 1) / 2) - y;
+                    world.push([cx1 - (.5 * h), cy - .5, cx2 + (.5 * h), cy - .5]);
+                    start = null;
+                    end = null;
+                }
+            }
+        }
+
+        // sw
+        for (var x = 0; x < this.width; x += 2) {
+            start = null;
+            end = null;
+            for (var y = 0; y < this.height; y++) {
+                c = this.cells[y * this.width + x];
+                if (y < this.height - 1) {
+                    n = this.cells[(y + 1) * this.width + x];
+                } else {
+                    n = null;
+                }
+                if (start == null && !c.links.has(c.sw)) {
+                    start = y;
+                    cx1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+                }
+                if (start != null && (n == null || n.links.has(n.sw))) {
+                    end = y;
+                    cx2 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+                }
+                if (start != null && end != null) {
+                    cy1 = ((this.height - 1) / 2) - start;
+                    cy2 = ((this.height - 1) / 2) - end;
+                    world.push([cx1, cy1 + .5, cx2 - (.5 * h), cy2 - .5]);
+                    start = null;
+                    end = null;
+                }
+            }
+        }
+
+        // nw
+        if (this.width % 2 == 0) {
+            x = this.width - 1;
+            y = 0;
+            cx1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+            cy1 = ((this.height - 1) / 2) - y;
+            y = this.height - 1;
+            cx2 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+            cy2 = ((this.height - 1) / 2) - y;
+            world.push([cx1 + (.5 * h), cy1 + .5, cx2, cy2 - .5]);
+        }
+
+        // se
+        for (var y_min = this.height - 1; y_min > (0 - this.width); y_min--) {
+            start = null;
+            end = null;
+            for (var x = 0, y = y_min; x < this.width && y < this.height; x += 2, y++) {
+                if (y < 0) {
+                    continue;
+                }   
+                c = this.cells[y * this.width + x];
+                if (y < this.height - 1 && x < this.width - 2) {
+                    n = this.cells[(y + 1) * this.width + x + 2];
+                } else {
+                    n = null;
+                }
+                if (start == null && !c.links.has(c.se)) {
+                    start = y;
+                    cx1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+                    cy1 = ((this.height - 1) / 2) - y;
+                }
+                if (start != null && (n == null || n.links.has(n.se))) {
+                    end = y;
+                    cx2 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+                    cy2 = ((this.height - 1) / 2) - y;
+                }
+                if (start != null && end != null) {
+                    world.push([cx1, cy1 + .5, cx2 + (.5 * h), cy2 - .5]);
+                    start = null;
+                    end = null;
+                }
+            }
+        }
+        return world;
+    }
+
+    render_to_svg_2d(svg) {
+        const svgns = 'http://www.w3.org/2000/svg';
+
+        var line;
+
+        var world = this.get_world();
+
+        var x1, y1, x2, y2;
+
+        for (let i = 0; i < world.length; i++) {
+            x1 = world[i][0];
+            y1 = world[i][1];
+            x2 = world[i][2];
+            y2 = world[i][3];
+            line = document.createElementNS(svgns, 'line');
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            line.setAttribute('stroke', 'black');
+            line.setAttribute('stroke-width', '2px');
+            line.setAttribute('stroke-linejoin', 'round');
+            line.setAttribute('vector-effect', 'non-scaling-stroke');
+            svg.appendChild(line);
+        }
+    }
 }
 
 class SquareMaze extends Maze {
@@ -1069,7 +1456,7 @@ class HexMaze extends Maze {
         while (this.direction < 0) {
             this.direction += 6;
         }
-        while (this.direction > 3) {
+        while (this.direction > 5) {
             this.direction -= 6;
         }
     }
@@ -1525,4 +1912,4 @@ class HexMaze extends Maze {
     }
 }
 
-module.exports = { line_segment_intersection, split_panel, SquareMaze, HexMaze, Panel, Point };
+module.exports = { line_segment_intersection, split_panel, TriMaze, SquareMaze, HexMaze, Panel, Point };

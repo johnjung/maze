@@ -663,7 +663,7 @@ class Maze {
             if (visited.indexOf(false) == -1) {
                 break;
             }
-            n_arr = [c.n, c.s, c.e, c.w].filter((i) => i != undefined && visited[i.y * this.width + i.x] == false);
+            n_arr = c.get_neighbors().filter((i) => visited[i.y * this.width + i.x] == false);
             if (n_arr.length > 0) {
                 n = n_arr[Math.floor(Math.random() * n_arr.length)];
                 c.link(n); 
@@ -674,7 +674,7 @@ class Maze {
                     for (let x = 0; x < this.width; x++) {
                         if (visited[y * this.width + x] == false) {
                             c = this.cells[y * this.width + x];
-                            n_arr = [c.n, c.s, c.e, c.w].filter((i) => i != undefined && visited[i.y * this.width + i.x] == true);
+                            n_arr = c.get_neighbors().filter((i) => visited[i.y * this.width + i.x] == true);
                             if (n_arr.length > 0) {
                                 n = n_arr[Math.floor(Math.random() * n_arr.length)];
                                 c.link(n);
@@ -688,11 +688,22 @@ class Maze {
     }
 
     recursive_backtracker() {
-        var n_arr, n;
+        var n_arr, n, x, y;
         var stack = [];
         var visited = new Array(this.width * this.height).fill(false);
 
-        var c = this.cells[0];
+        var c = null;
+        while (true) {
+            if (c != null) {
+                break;
+            }
+            y = Math.floor(Math.random() * this.height);
+            x = Math.floor(Math.random() * this.width);
+            if (this.mask[y][x]) {
+                c = this.cells[y * this.width + x];
+            }
+        }
+
         stack.push(c);
         visited[c.y * this.width + c.x] = true;
 
@@ -701,7 +712,7 @@ class Maze {
                 break;
             }
 
-            n_arr = [c.n, c.s, c.e, c.w].filter((i) => i != undefined && visited[i.y * this.width + i.x] == false);
+            n_arr = c.get_neighbors().filter((i) => visited[i.y * this.width + i.x] == false);
             if (n_arr.length > 0) {
                 n = n_arr[Math.floor(Math.random() * n_arr.length)];
                 c.link(n);
@@ -716,14 +727,14 @@ class Maze {
             }
         }
     }
-            
 }
 
 class TriMaze extends Maze {
-    constructor(width, height) {
+    constructor(width, height, mask) {
         super();
         this.width = width;
         this.height = height;
+        this.mask = mask;
         this.cells = [];
 
         for (let y = 0; y < this.height; y++) {
@@ -734,29 +745,31 @@ class TriMaze extends Maze {
 
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
-                // ne
-                if (x % 2 == 1 && x < this.width - 1) {
-                    this.cells[y * this.width + x].ne = this.cells[y * this.width + x + 1];
-                }
-                // n
-                if (x % 2 == 0 && y < (this.height - 1) && x < (this.width - 1)) {
-                    this.cells[y * this.width + x].n = this.cells[(y + 1) * this.width + x + 1];
-                }
-                // nw
-                if (x % 2 == 1 && x > 0) {
-                    this.cells[y * this.width + x].nw = this.cells[y * this.width + (x - 1)];
-                }
-                // sw 
-                if (x % 2 == 0 && x > 0) {
-                    this.cells[y * this.width + x].sw = this.cells[y * this.width + (x - 1)];
-                }
-                // s
-                if (x % 2 == 1 && y > 0 && x > 0) {
-                    this.cells[y * this.width + x].s = this.cells[(y - 1) * this.width + (x - 1)];
-                }
-                // se
-                if (x % 2 == 0 && x < (this.width - 1)) {
-                    this.cells[y * this.width + x].se = this.cells[y * this.width + (x + 1)];
+                if (this.mask[y][x]) {
+                    // ne
+                    if (x % 2 == 1 && x < this.width - 1 && this.mask[y][x + 1]) {
+                        this.cells[y * this.width + x].ne = this.cells[y * this.width + x + 1];
+                    }
+                    // n
+                    if (x % 2 == 0 && y < (this.height - 1) && x < (this.width - 1) && this.mask[y + 1][x + 1]) {
+                        this.cells[y * this.width + x].n = this.cells[(y + 1) * this.width + x + 1];
+                    }
+                    // nw
+                    if (x % 2 == 1 && x > 0 && this.mask[y][x - 1]) {
+                        this.cells[y * this.width + x].nw = this.cells[y * this.width + (x - 1)];
+                    }
+                    // sw 
+                    if (x % 2 == 0 && x > 0 && this.mask[y][x - 1]) {
+                        this.cells[y * this.width + x].sw = this.cells[y * this.width + (x - 1)];
+                    }
+                    // s
+                    if (x % 2 == 1 && y > 0 && x > 0 && this.mask[y - 1][x - 1]) {
+                        this.cells[y * this.width + x].s = this.cells[(y - 1) * this.width + (x - 1)];
+                    }
+                    // se
+                    if (x % 2 == 0 && x < (this.width - 1) && this.mask[y][x + 1]) {
+                        this.cells[y * this.width + x].se = this.cells[y * this.width + (x + 1)];
+                    }
                 }
             }
         }
@@ -897,53 +910,17 @@ class TriMaze extends Maze {
         var c, n, cx, cx1, cx2, cy, cy1, cy2, line, circle;
         var start, end, x_min;
 
-        // s
-        for (var y = 0; y < this.height; y++) {
+        // horizontal
+        for (var y = 0; y < this.height - 1; y++) {
             start = null;
             end = null;
-            for (var x = 1; x < this.width; x += 2) {
-                c = this.cells[y * this.width + x];
-                if (x < this.width - 2) {
-                    n = this.cells[y * this.width + x + 2];
-                } else {
-                    n = null;
-                }
-                if (start == null && !c.links.has(c.s)) {
+            for (var x = 0; x < this.width - 3; x += 2) {
+                c = this.cells[y * this.width + x    ];
+                n = this.cells[y * this.width + x + 2];
+                if (start == null && (this.mask[c.y][c.x] + this.mask[c.y + 1][c.x + 1] == 1 || (c.n && !c.links.has(c.n)))) {
                     start = x;
                 }
-                if (start != null && (n == null || n.links.has(n.s))) {
-                    end = x;
-                }
-                if (start != null && end != null) {
-                    cx1 = ((start / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
-                    cx2 = ((end   / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
-                    cy = ((this.height - 1) / 2) - y;
-                    world.push([cx1 - (.5 * h), cy + .5, cx2 + (.5 * h), cy + .5]);
-                    start = null;
-                    end = null;
-                }
-            }
-        }
-
-        // n
-        for (var y = 0; y < this.height; y++) {
-            start = null;
-            end = null;
-            if (y < this.height - 1) {
-                if (this.width % 2 == 0) {
-                    x_min = this.width;
-                } else {
-                    x_min = this.width - 1;
-                }
-            } else {
-                x_min = 0;
-            }
-            for (var x = x_min; x < this.width; x += 2) {
-                c = this.cells[y * this.width + x];
-                if (start == null && !c.links.has(c.n)) {
-                    start = x;
-                }
-                if (start != null && (c.links.has(c.n) || x >= this.width - 2)) {
+                if (start != null && (this.mask[n.y][n.x] + this.mask[n.y + 1][n.x + 1] == 0 || (n.n && n.links.has(n.n)))) {
                     end = x;
                 }
                 if (start != null && end != null) {
@@ -957,68 +934,48 @@ class TriMaze extends Maze {
             }
         }
 
-        // sw
-        for (var x = 0; x < this.width; x += 2) {
+        // diagonal upper left to lower right
+        for (var x = 1; x < this.width - 2; x += 2) {
             start = null;
             end = null;
-            for (var y = 0; y < this.height; y++) {
-                c = this.cells[y * this.width + x];
-                if (y < this.height - 1) {
-                    n = this.cells[(y + 1) * this.width + x];
-                } else {
-                    n = null;
-                }
-                if (start == null && !c.links.has(c.sw)) {
-                    start = y;
+            for (var y = 0; y < this.height - 1; y++) {
+                c = this.cells[(y    ) * this.width + x];
+                n = this.cells[(y + 1) * this.width + x];
+                if (start == null && (this.mask[c.y][c.x] + this.mask[c.y][c.x + 1] == 1 || (c.ne && !c.links.has(c.ne)))) {
+                    start = [x, y];
                     cx1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+                    cy1 = ((this.height - 1) / 2) - y;
                 }
-                if (start != null && (n == null || n.links.has(n.sw))) {
-                    end = y;
+                if (start != null && (this.mask[n.y][n.x] + this.mask[n.y][n.x + 1] == 0 || (n.ne && n.links.has(n.ne)))) {
+                    end = [x, y];
                     cx2 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+                    cy2 = ((this.height - 1) / 2) - y;
                 }
                 if (start != null && end != null) {
-                    cy1 = ((this.height - 1) / 2) - start;
-                    cy2 = ((this.height - 1) / 2) - end;
-                    world.push([cx1, cy1 + .5, cx2 - (.5 * h), cy2 - .5]);
+                    world.push([cx1 + (.5 * h), cy1 + .5, cx2, cy2 - .5]);
                     start = null;
                     end = null;
                 }
             }
         }
 
-        // nw
-        if (this.width % 2 == 0) {
-            x = this.width - 1;
-            y = 0;
-            cx1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
-            cy1 = ((this.height - 1) / 2) - y;
-            y = this.height - 1;
-            cx2 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
-            cy2 = ((this.height - 1) / 2) - y;
-            world.push([cx1 + (.5 * h), cy1 + .5, cx2, cy2 - .5]);
-        }
-
-        // se
+        // diagonal lower left to upper right
         for (var y_min = this.height - 1; y_min > (0 - this.width); y_min--) {
             start = null;
             end = null;
-            for (var x = 0, y = y_min; x < this.width && y < this.height; x += 2, y++) {
+            for (var x = 0, y = y_min; x < this.width - 2 && y < this.height - 1; x += 2, y++) {
                 if (y < 0) {
                     continue;
                 }   
-                c = this.cells[y * this.width + x];
-                if (y < this.height - 1 && x < this.width - 2) {
-                    n = this.cells[(y + 1) * this.width + x + 2];
-                } else {
-                    n = null;
-                }
-                if (start == null && !c.links.has(c.se)) {
-                    start = y;
+                c = this.cells[(y    ) * this.width + x    ];
+                n = this.cells[(y + 1) * this.width + x + 2];
+                if (start == null && (this.mask[c.y][c.x] + this.mask[c.y][c.x + 1] == 1 || (c.se && !c.links.has(c.se)))) {
+                    start = [x, y];
                     cx1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
                     cy1 = ((this.height - 1) / 2) - y;
                 }
-                if (start != null && (n == null || n.links.has(n.se))) {
-                    end = y;
+                if (start != null && (this.mask[n.y][n.x] + this.mask[n.y][n.x + 1] == 0 || (n.se && n.links.has(n.se)))) {
+                    end = [x, y];
                     cx2 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
                     cy2 = ((this.height - 1) / 2) - y;
                 }
@@ -1035,11 +992,14 @@ class TriMaze extends Maze {
     render_to_svg_2d(svg) {
         const svgns = 'http://www.w3.org/2000/svg';
 
-        var line;
+        // triangle edge length.
+        let h = Math.sqrt(1 + Math.pow(0.5, 2));
+
+        var line, circle;
 
         var world = this.get_world();
 
-        var x1, y1, x2, y2;
+        var x, y, x1, y1, x2, y2;
 
         for (let i = 0; i < world.length; i++) {
             x1 = world[i][0];
@@ -1057,6 +1017,21 @@ class TriMaze extends Maze {
             line.setAttribute('vector-effect', 'non-scaling-stroke');
             svg.appendChild(line);
         }
+
+        // draw current spot
+        x = this.current_cell.x;
+        y = this.current_cell.y;
+        x1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+        y1 = ((this.height - 1) / 2) - y;
+        circle = document.createElementNS(svgns, 'circle');
+        circle.setAttribute('cx', x1);
+        circle.setAttribute('cy', y1);
+        circle.setAttribute('r', .05);
+        circle.setAttribute('stroke', 'black');
+        circle.setAttribute('stroke-width', '2px');
+        circle.setAttribute('stroke-circlejoin', 'round');
+        circle.setAttribute('vector-effect', 'non-scaling-stroke');
+        svg.appendChild(circle);
     }
 }
 

@@ -539,6 +539,10 @@ class TriMaze extends Maze {
 
         var world = this.get_world();
 
+        for (let i = 0; i < world.length; i++) {
+            console.log(world[i][0].toString() + ', ' + world[i][1].toString() + ', ' + world[i][2].toString() + ', ' + world[i][3].toString());
+        }
+
         var x, y, x1, y1, x2, y2;
 
         for (let i = 0; i < world.length; i++) {
@@ -582,30 +586,29 @@ class TriMaze extends Maze {
         var d = [x1, y1];
 
         /*
-        var acc2 = new Polygon([
-            new Point([1,0]), new Point([2,0]), new Point([2,1]), new Point([1,1])
-        ]);
+        var acc1 = new Polygon([[3,0], [4,0], [4,1], [3,1]]);
+        var acc2 = new Polygon([[1,0], [4.0001,0], [2,1], [1,1]]);
         */
         var acc = new Polygon();
-        var p;
+        var p, a, b;
 
         // make a new, empty polygon for accumulation.
         for (let i = 0; i < world.length; i++) {
+            if (world[i][0] == 0 && world[i][2] == 0) {
+                continue;
+            }
+            if (world[i][1] == 0 && world[i][3] == 0) {
+                continue;
+            }
             p = new Polygon([
-                [ world[i][0],      world[i][1]],
-                [ world[i][2],      world[i][3]],
+                [world[i][0],       world[i][1]],
+                [world[i][2],       world[i][3]],
                 [world[i][2] * 100, world[i][3] * 100],
                 [world[i][0] * 100, world[i][1] * 100]
             ]);
             acc = unify(acc, p);
         }
          
-        console.log(p);
-        console.log(world[0][0]);
-        console.log(world[0][1]);
-        console.log(world[0][2]);
-        console.log(world[0][3]);
-
         // just look at the SVG to start.
         svg.innerHTML = svg.innerHTML + acc.svg({
             'fill': 'red',

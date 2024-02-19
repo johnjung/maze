@@ -1,4 +1,4 @@
-const maze = require('./maze');
+const maze = require('./trimaze');
 
 /*
 document.onkeydown = function(e) {

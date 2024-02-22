@@ -1,7 +1,93 @@
 const Flatten = globalThis["@flatten-js/core"];
-const { circle, Point, Polygon, segment } = Flatten;
-const { unify } = Flatten.BooleanOperations;
+const { Point, Polygon, Segment } = Flatten;
 
+function is_point_in_front(point, segments) {
+    /**
+     * Check to see if a point is in front of an Array of line segments
+     * from the perspective of the origin.
+     * @param {Point} point - point to test
+     * @param {Array} segments - array of line segments
+     */
+    if (point instanceof Point && segments.every(s => s instanceof Segment)) {
+        var ray = new Segment(new Point(0, 0), point);
+        return segments.every(s => ray.intersect(s) == false);
+    } else {
+        throw new Error ('function takes a Point and an Array of Segments.');
+    }
+}
+   
+function segment_has_obstruction(segment, segments) {
+    /**
+     * Check to see if an individual segment is obstructed by any others.
+     * @param {Segment} segment - segment to test against
+     * @param {Array} segments - an array of segments to check
+     */
+    if (segment instanceof Segment && segments.every(s => s instanceof Segment)) {
+        for (let i = 0; i < segments.length; i++) {
+            if (segment != segments[i]) {
+                if (segment.intersect(new Segment(segments[i].ps, segments[i].ps.scale(100, 100))).length ||
+                    segment.intersect(new Segment(segments[i].pe, segments[i].pe.scale(100, 100))).length ||
+                    new Segment(segment.ps, new Point(0, 0)).intersect(segments[i]).length ||
+                    new Segment(segment.pe, new Point(0, 0)).intersect(segments[i]).length) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    } else {
+        throw new Error('function takes a Segment and an Array of Segments.');
+    }
+}
+
+function get_torch_outline(segments) {
+    /**
+     * Get a polygon of torch outline.
+     * @param {Array} segments - an array of Segment instances
+     */
+    function circular_sort_fun(a, b) {
+        var aa = Math.atan2(a[0].y, a[0].x);
+        var ab = Math.atan2(b[0].y, b[0].x);
+        if (aa < ab) {
+            return -1;
+        }
+        if (ab > aa) {
+            return 1;
+        }
+        var da = a[0].distanceTo(new Point(0, 0))[0];
+        var db = b[0].distanceTo(new Point(0, 0))[0];
+        if (da < db) {
+            return -1;
+        }
+        if (db > da) {
+            return 1;
+        }
+        return 0;
+    }
+
+    var outline = [];
+
+    //collect all points and arrange them in a circle. 
+    var point_segment_lookup = Array();
+    for (let i = 0; i < segments.length; i++) {
+        if ((segments[i].ps.x == 0 && segments[i].pe.x == 0) ||
+            (segments[i].ps.y == 0 && segments[i].pe.y == 0)) {
+            continue;
+        } else {
+            point_segment_lookup.push([segments[i].ps, segments[i]]);
+            point_segment_lookup.push([segments[i].pe, segments[i]]);
+        }
+    }
+    point_segment_lookup.sort(circular_sort_fun);
+
+    // make a shape of all points. this needs to be more complicated,
+    // but start here. 
+    for (let i = 0; i < point_segment_lookup.length; i++) {
+        if (is_point_in_front(point_segment_lookup[i][0], segments)) {
+            outline.push(point_segment_lookup[i][0]);
+        }
+    }
+    return outline;
+}
 
 class Cell {
     link(cell, bidi=true) {
@@ -115,7 +201,6 @@ class Maze {
 
         function link_path(path, cells, visited, width) {
             if (!(Array.isArray(path) && path.every(p => Array.isArray(p) && p.length == 2))) { 
-                console.log(path);
                 throw new Error('function takes path, an array of length 2 arrays.');
             }
             if (!(Array.isArray(cells) && cells.every(c =>  c instanceof SquareCell))) {
@@ -467,7 +552,12 @@ class TriMaze extends Maze {
                     cx1 = ((start / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
                     cx2 = ((end   / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
                     cy = ((this.height - 1) / 2) - y;
-                    world.push([cx1 - (.5 * h), cy - .5, cx2 + (.5 * h), cy - .5]);
+                    world.push(
+                        new Segment(
+                            new Point(cx1 - (.5 * h), cy - .5),
+                            new Point(cx2 + (.5 * h), cy - .5)
+                        )
+                    );
                     start = null;
                     end = null;
                 }
@@ -492,7 +582,12 @@ class TriMaze extends Maze {
                     cy2 = ((this.height - 1) / 2) - y;
                 }
                 if (start != null && end != null) {
-                    world.push([cx1 + (.5 * h), cy1 + .5, cx2, cy2 - .5]);
+                    world.push(
+                        new Segment(
+                            new Point(cx1 + (.5 * h), cy1 + .5),
+                            new Point(cx2, cy2 - .5)
+                        )
+                    );
                     start = null;
                     end = null;
                 }
@@ -520,7 +615,12 @@ class TriMaze extends Maze {
                     cy2 = ((this.height - 1) / 2) - y;
                 }
                 if (start != null && end != null) {
-                    world.push([cx1, cy1 + .5, cx2 + (.5 * h), cy2 - .5]);
+                    world.push(
+                        new Segment(
+                            new Point(cx1, cy1 + .5),
+                            new Point(cx2 + (.5 * h), cy2 - .5)
+                        )
+                    );
                     start = null;
                     end = null;
                 }
@@ -539,17 +639,13 @@ class TriMaze extends Maze {
 
         var world = this.get_world();
 
-        for (let i = 0; i < world.length; i++) {
-            console.log(world[i][0].toString() + ', ' + world[i][1].toString() + ', ' + world[i][2].toString() + ', ' + world[i][3].toString());
-        }
-
         var x, y, x1, y1, x2, y2;
 
         for (let i = 0; i < world.length; i++) {
-            x1 = world[i][0];
-            y1 = world[i][1];
-            x2 = world[i][2];
-            y2 = world[i][3];
+            x1 = world[i].ps.x;
+            y1 = world[i].ps.y;
+            x2 = world[i].pe.x;
+            y2 = world[i].pe.y;
             line = document.createElementNS(svgns, 'line');
             line.setAttribute('x1', x1);
             line.setAttribute('y1', y1);
@@ -577,44 +673,16 @@ class TriMaze extends Maze {
         circle.setAttribute('vector-effect', 'non-scaling-stroke');
         svg.appendChild(circle);
 
-        // draw "lit up" walls. 
-        // get delta from origin.
-        x = this.current_cell.x;
-        y = this.current_cell.y;
-        x1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
-        y1 = ((this.height - 1) / 2) - y;
-        var d = [x1, y1];
-
-        /*
-        var acc1 = new Polygon([[3,0], [4,0], [4,1], [3,1]]);
-        var acc2 = new Polygon([[1,0], [4.0001,0], [2,1], [1,1]]);
-        */
-        var acc = new Polygon();
-        var p, a, b;
-
-        // make a new, empty polygon for accumulation.
-        for (let i = 0; i < world.length; i++) {
-            if (world[i][0] == 0 && world[i][2] == 0) {
-                continue;
-            }
-            if (world[i][1] == 0 && world[i][3] == 0) {
-                continue;
-            }
-            p = new Polygon([
-                [world[i][0],       world[i][1]],
-                [world[i][2],       world[i][3]],
-                [world[i][2] * 100, world[i][3] * 100],
-                [world[i][0] * 100, world[i][1] * 100]
-            ]);
-            acc = unify(acc, p);
-        }
-         
+        // this is returning [] now.
+        console.log(get_torch_outline(world));
         // just look at the SVG to start.
+        /*
         svg.innerHTML = svg.innerHTML + acc.svg({
             'fill': 'red',
             'stroke-width': '6px',
             'vector-effect': 'non-scaling-stroke'
         });
+        */
     }
 }
 

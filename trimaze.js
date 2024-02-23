@@ -1,16 +1,48 @@
 const Flatten = globalThis["@flatten-js/core"];
-const { Point, Polygon, Segment } = Flatten;
+const { Point, Polygon, Ray, Segment, Vector } = Flatten;
 
-function is_point_in_front(point, segments) {
+function get_intersections(point, segments, center) {
+    if (point instanceof Point && segments.every(s => s instanceof Segment)) {
+        var ray = new Segment(
+            center, 
+            new Point(
+                point.translate(-center.x, -center.y).scale(100, 100).translate(center.x, center.y)
+            )
+        );
+        var intersections = [];
+        for (let i = 0; i < segments.length; i++) {
+            intersections = intersections.concat(ray.intersect.segments[i]);
+        }
+
+        return intersections;
+    } else {
+        throw new Error ('function takes a Point and an Array of Segments.');
+    }
+}
+
+function is_point_in_front(point, segments, center) {
     /**
      * Check to see if a point is in front of an Array of line segments
      * from the perspective of the origin.
      * @param {Point} point - point to test
      * @param {Array} segments - array of line segments
+     * @param {Point} center - centerpoint.
      */
     if (point instanceof Point && segments.every(s => s instanceof Segment)) {
-        var ray = new Segment(new Point(0, 0), point);
-        return segments.every(s => ray.intersect(s) == false);
+        /*
+        var intersections = get_intersections(point, segments, center);
+        return intersections[0].x == point.x && intersections[0].y == point.y;
+        */
+        var ray = new Segment(center, point);
+        for (let i = 0; i < segments.length; i++) {
+            if (!(point.x == segments[i].ps.x && point.y == segments[i].ps.y) &&
+                !(point.x == segments[i].pe.x && point.y == segments[i].pe.y)) {
+                if (ray.intersect(segments[i]).length) {
+                    return false;
+                }
+            }
+        }
+        return true;
     } else {
         throw new Error ('function takes a Point and an Array of Segments.');
     }
@@ -39,54 +71,147 @@ function segment_has_obstruction(segment, segments) {
     }
 }
 
-function get_torch_outline(segments) {
+function get_torch_polygon(segments, center) {
     /**
      * Get a polygon of torch outline.
      * @param {Array} segments - an array of Segment instances
+     * @param {Point} center - torch position. 
      */
-    function circular_sort_fun(a, b) {
-        var aa = Math.atan2(a[0].y, a[0].x);
-        var ab = Math.atan2(b[0].y, b[0].x);
-        if (aa < ab) {
-            return -1;
-        }
-        if (ab > aa) {
-            return 1;
-        }
-        var da = a[0].distanceTo(new Point(0, 0))[0];
-        var db = b[0].distanceTo(new Point(0, 0))[0];
-        if (da < db) {
-            return -1;
-        }
-        if (db > da) {
-            return 1;
-        }
-        return 0;
-    }
 
-    var outline = [];
+    var iota = Math.PI / 720;
 
-    //collect all points and arrange them in a circle. 
-    var point_segment_lookup = Array();
+    //collect all angles.
+    var angles = [];
+    var a;
     for (let i = 0; i < segments.length; i++) {
-        if ((segments[i].ps.x == 0 && segments[i].pe.x == 0) ||
-            (segments[i].ps.y == 0 && segments[i].pe.y == 0)) {
-            continue;
-        } else {
-            point_segment_lookup.push([segments[i].ps, segments[i]]);
-            point_segment_lookup.push([segments[i].pe, segments[i]]);
-        }
+        a = Math.atan2(segments[i].ps.y - center.y, segments[i].ps.x - center.x);
+        angles.push(a - iota);
+        angles.push(a + iota);
+        a = Math.atan2(segments[i].pe.y - center.y, segments[i].pe.x - center.x);
+        angles.push(a - iota);
+        angles.push(a + iota);
     }
-    point_segment_lookup.sort(circular_sort_fun);
+    angles.sort(function (a, b) { 
+        return a - b; 
+    });
 
-    // make a shape of all points. this needs to be more complicated,
-    // but start here. 
-    for (let i = 0; i < point_segment_lookup.length; i++) {
-        if (is_point_in_front(point_segment_lookup[i][0], segments)) {
-            outline.push(point_segment_lookup[i][0]);
+    // return polygon points for all intersections.
+    var output = [];
+
+    var intersections, inter, r;
+    for (let i = 0; i < angles.length; i++) {
+        intersections = [];
+        r = new Ray(
+            center,
+            new Vector(-Math.sin(angles[i]), Math.cos(angles[i]))
+        );
+        for (let j = 0; j < segments.length; j++) {
+            inter = r.intersect(segments[j]);
+            if (inter.length) {
+                intersections.push(inter[0]);
+            }
+        }
+        intersections.sort(function (a, b) {
+            return center.distanceTo(a)[0] - center.distanceTo(b)[0];
+        });
+        if (intersections.length) {
+            output.push(intersections[0]);
         }
     }
-    return outline;
+    return output;
+}
+
+function get_torch_segments(segments, center) {
+    /**
+     * Get an array of wall segments lit by a torch.
+     * @param {Array} segments - an array of Segment instances
+     * @param {Point} center - torch position. 
+     */
+
+    var iota = Math.PI / 720;
+
+    //collect all angles.
+    var angles_segments = [];
+    var a;
+    for (let i = 0; i < segments.length; i++) {
+        a = Math.atan2(segments[i].ps.y - center.y, segments[i].ps.x - center.x);
+        angles_segments.push([a - iota, segments[i]]);
+        angles_segments.push([a + iota, segments[i]]);
+        a = Math.atan2(segments[i].pe.y - center.y, segments[i].pe.x - center.x);
+        angles_segments.push([a - iota, segments[i]]);
+        angles_segments.push([a + iota, segments[i]]);
+    }
+    if (angles_segments.length == 0) {
+        return;
+    }
+    angles_segments.sort(function (a, b) { 
+        return a[0] - b[0]; 
+    });
+
+    // rotate angles array so that a start point is first. 
+    /*
+    var a, b, inter, intersections, s, tmp;
+    while (true) {
+        //a = angles_segments[0][0];
+        s = angles_segments[0][1];
+        if (!segment_has_obstruction(s, segments)) {
+            break;
+        b = Math.atan2(s.pe.y, s.pe.x);
+        if (a < b) {
+            tmp = s.ps.clone();
+            s.ps = s.pe;
+            s.pe = tmp;
+        }
+        } else {
+            angles_segments.unshift(angles_segments.pop());
+        }
+    }
+    */
+
+    // return segments.
+    var output = [];
+
+    var intersections, inter, r;
+    var line_start = null;
+    var previous_point = null;
+    var previous_segment = null;
+
+    for (let i = 0; i < angles_segments.length; i++) {
+        intersections = [];
+        r = new Ray(
+            center,
+            new Vector(-Math.sin(angles_segments[i][0]), Math.cos(angles_segments[i][0]))
+        );
+        for (let j = 0; j < segments.length; j++) {
+            inter = r.intersect(segments[j]);
+            if (inter.length) {
+                intersections.push([inter[0], segments[j]]);
+            }
+        }
+        intersections.sort(function (a, b) {
+            return center.distanceTo(a[0])[0] - center.distanceTo(b[0])[0];
+        });
+        if (intersections.length) {
+            if (line_start == null) {
+                line_start = intersections[0][0];
+                previous_point = intersections[0][0];
+                previous_segment = intersections[0][1];
+            } else {
+                if (previous_segment != intersections[0][1]) {
+                    output.push(
+                        new Segment(
+                            line_start,
+                            previous_point
+                        )
+                    );
+                    line_start = intersections[0][0];
+                }
+            }
+            previous_point = intersections[0][0];
+            previous_segment = intersections[0][1];
+        }
+    }
+    return output;
 }
 
 class Cell {
@@ -641,6 +766,44 @@ class TriMaze extends Maze {
 
         var x, y, x1, y1, x2, y2;
 
+        x = this.current_cell.x;
+        y = this.current_cell.y;
+        x1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+        y1 = ((this.height - 1) / 2) - y;
+
+        // render torch polygon.
+        var torch_outline = get_torch_polygon(world, new Point(x1, y1));
+        var point_str = [];
+        for (var i = 0; i < torch_outline.length; i++) {
+            point_str.push(torch_outline[i].x.toString() + ',' + torch_outline[i].y.toString());
+        }
+        var polygon; 
+        polygon = document.createElementNS(svgns, 'polygon');
+        polygon.setAttribute('points', point_str.join(' '));
+        polygon.setAttribute('stroke', 'none');
+        polygon.setAttribute('fill', 'rgb(42, 42, 42)');
+        svg.appendChild(polygon);
+
+        // render walls. 
+        var torch_segments = get_torch_segments(world, new Point(x1, y1));
+        for (let i = 0; i < torch_segments.length; i++) {
+            x1 = torch_segments[i].ps.x;
+            y1 = torch_segments[i].ps.y;
+            x2 = torch_segments[i].pe.x;
+            y2 = torch_segments[i].pe.y;
+            line = document.createElementNS(svgns, 'line');
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            line.setAttribute('stroke', 'white');
+            line.setAttribute('stroke-width', '8px');
+            line.setAttribute('stroke-linecap', 'round');
+            line.setAttribute('vector-effect', 'non-scaling-stroke');
+            svg.appendChild(line);
+        }
+
+        // render walls. 
         for (let i = 0; i < world.length; i++) {
             x1 = world[i].ps.x;
             y1 = world[i].ps.y;
@@ -651,14 +814,14 @@ class TriMaze extends Maze {
             line.setAttribute('y1', y1);
             line.setAttribute('x2', x2);
             line.setAttribute('y2', y2);
-            line.setAttribute('stroke', 'black');
-            line.setAttribute('stroke-width', '2px');
-            line.setAttribute('stroke-linejoin', 'round');
+            line.setAttribute('stroke', 'white');
+            line.setAttribute('stroke-width', '1px');
+            line.setAttribute('stroke-linecap', 'round');
             line.setAttribute('vector-effect', 'non-scaling-stroke');
             svg.appendChild(line);
         }
 
-        // draw current spot
+        // draw current spot.
         x = this.current_cell.x;
         y = this.current_cell.y;
         x1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
@@ -667,23 +830,13 @@ class TriMaze extends Maze {
         circle.setAttribute('cx', x1);
         circle.setAttribute('cy', y1);
         circle.setAttribute('r', .05);
-        circle.setAttribute('stroke', 'black');
+        circle.setAttribute('stroke', 'white');
         circle.setAttribute('stroke-width', '2px');
         circle.setAttribute('stroke-circlejoin', 'round');
         circle.setAttribute('vector-effect', 'non-scaling-stroke');
         svg.appendChild(circle);
-
-        // this is returning [] now.
-        console.log(get_torch_outline(world));
-        // just look at the SVG to start.
-        /*
-        svg.innerHTML = svg.innerHTML + acc.svg({
-            'fill': 'red',
-            'stroke-width': '6px',
-            'vector-effect': 'non-scaling-stroke'
-        });
-        */
     }
 }
 
 module.exports = { TriMaze };
+

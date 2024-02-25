@@ -209,8 +209,9 @@ class Cell {
 }
 
 class TriCell extends Cell {
-    constructor(y, x) {
+    constructor(z, y, x) {
         super();
+        this.z = z;
         this.y = y;
         this.x = x;
         this.ne = null;
@@ -253,36 +254,45 @@ class TriCell extends Cell {
 
 class Maze {
     recursive_backtracker() {
-        var n_arr, n, x, y;
+        var n_arr, n, x, y, z;
         var stack = [];
-        var visited = new Array(this.width * this.height).fill(false);
+        var visited = new Array();
+        var tmp;
+        for (let j = 0; j < this.depth; j++) {
+            tmp = new Array();
+            for (let i = 0; i < this.height; i++) {
+                tmp.push(new Array(this.width).fill(false));
+            }
+            visited.push(tmp);
+        }
 
         var c = null;
         while (true) {
             if (c != null) {
                 break;
             }
+            z = Math.floor(Math.random() * this.depth);
             y = Math.floor(Math.random() * this.height);
             x = Math.floor(Math.random() * this.width);
             if (this.mask[y][x]) {
-                c = this.cells[y * this.width + x];
+                c = this.cells[z][y][x];
             }
         }
 
         stack.push(c);
-        visited[c.y * this.width + c.x] = true;
+        visited[c.z][c.y][c.x] = true;
 
         while (true) {
             if (stack.length == 0) {
                 break;
             }
 
-            n_arr = c.get_neighbors().filter((i) => visited[i.y * this.width + i.x] == false);
+            n_arr = c.get_neighbors().filter((i) => visited[i.z][i.y][i.x] == false);
             if (n_arr.length > 0) {
                 n = n_arr[Math.floor(Math.random() * n_arr.length)];
                 c.link(n);
                 stack.push(n);
-                visited[n.y * this.width + n.x] = true;
+                visited[n.z][n.y][n.x] = true;
                 c = n;
             } else {
                 stack.pop();
@@ -295,7 +305,7 @@ class Maze {
 }
 
 class TriMaze extends Maze {
-    constructor(width, height, mask) {
+    constructor(width, height, depth, mask) {
         super();
         this.E = 0;
         this.NE = 1;
@@ -308,47 +318,57 @@ class TriMaze extends Maze {
         
         this.width = width;
         this.height = height;
+        this.depth = depth;
         this.mask = mask;
-        this.cells = [];
+        this.cells = new Array();
 
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                this.cells.push(new TriCell(y, x));
+        var level, row;
+        for (let z = 0; z < this.depth; z++) {
+            level = new Array();
+            for (let y = 0; y < this.height; y++) {
+                row = new Array();
+                for (let x = 0; x < this.width; x++) {
+                    row.push(new TriCell(z, y, x));
+                }
+                level.push(row);
             }
+            this.cells.push(level);
         }
 
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                if (this.mask[y][x]) {
-                    // ne
-                    if (x % 2 == 1 && x < this.width - 1 && this.mask[y][x + 1]) {
-                        this.cells[y * this.width + x].ne = this.cells[y * this.width + x + 1];
-                    }
-                    // n
-                    if (x % 2 == 0 && y < (this.height - 1) && x < (this.width - 1) && this.mask[y + 1][x + 1]) {
-                        this.cells[y * this.width + x].n = this.cells[(y + 1) * this.width + x + 1];
-                    }
-                    // nw
-                    if (x % 2 == 1 && x > 0 && this.mask[y][x - 1]) {
-                        this.cells[y * this.width + x].nw = this.cells[y * this.width + (x - 1)];
-                    }
-                    // sw 
-                    if (x % 2 == 0 && x > 0 && this.mask[y][x - 1]) {
-                        this.cells[y * this.width + x].sw = this.cells[y * this.width + (x - 1)];
-                    }
-                    // s
-                    if (x % 2 == 1 && y > 0 && x > 0 && this.mask[y - 1][x - 1]) {
-                        this.cells[y * this.width + x].s = this.cells[(y - 1) * this.width + (x - 1)];
-                    }
-                    // se
-                    if (x % 2 == 0 && x < (this.width - 1) && this.mask[y][x + 1]) {
-                        this.cells[y * this.width + x].se = this.cells[y * this.width + (x + 1)];
+        for (let z = 0; z < this.depth; z++) {
+            for (let y = 0; y < this.height; y++) {
+                for (let x = 0; x < this.width; x++) {
+                    if (this.mask[y][x]) {
+                        // ne
+                        if (x % 2 == 1 && x < this.width - 1 && this.mask[y][x + 1]) {
+                            this.cells[z][y][x].ne = this.cells[z][y][x + 1];
+                        }
+                        // n
+                        if (x % 2 == 0 && y < (this.height - 1) && x < (this.width - 1) && this.mask[y + 1][x + 1]) {
+                            this.cells[z][y][x].n = this.cells[z][y + 1][x + 1];
+                        }
+                        // nw
+                        if (x % 2 == 1 && x > 0 && this.mask[y][x - 1]) {
+                            this.cells[z][y][x].nw = this.cells[z][y][x - 1];
+                        }
+                        // sw 
+                        if (x % 2 == 0 && x > 0 && this.mask[y][x - 1]) {
+                            this.cells[z][y][x].sw = this.cells[z][y][x - 1];
+                        }
+                        // s
+                        if (x % 2 == 1 && y > 0 && x > 0 && this.mask[y - 1][x - 1]) {
+                            this.cells[z][y][x].s = this.cells[z][y - 1][x - 1];
+                        }
+                        // se
+                        if (x % 2 == 0 && x < (this.width - 1) && this.mask[y][x + 1]) {
+                            this.cells[z][y][x].se = this.cells[z][y][x + 1];
+                        }
                     }
                 }
             }
         }
 
-        this.current_cell = this.cells[5 * this.width + 6];
+        this.current_cell = this.cells[0][5][6];
         this.current_wall = undefined;
         this.direction = undefined;
     }
@@ -637,7 +657,7 @@ class TriMaze extends Maze {
             for (let x = 0; x < this.width; x++) {
                 cx = (x * 2 + 2) + ((this.height - 1 - y + 1) * 2 - 2);
                 cy = this.height * 2 - 1 - (y * 2);
-                c = this.cells[y * this.width + x];
+                c = this.cells[0][y][x];
                 if (c.links.has(c.ne)) {
                     output_grid[cy][cx + 1] = ' ';
                 }
@@ -668,7 +688,7 @@ class TriMaze extends Maze {
             console.log(output_grid[y].join(''));
         }
     }
-    get_world() {
+    get_world(z) {
         // triangle edge length.
         let h = Math.sqrt(1 + Math.pow(0.5, 2));
   
@@ -682,8 +702,8 @@ class TriMaze extends Maze {
             start = null;
             end = null;
             for (var x = 0; x < this.width - 3; x += 2) {
-                c = this.cells[y * this.width + x    ];
-                n = this.cells[y * this.width + x + 2];
+                c = this.cells[z][y][x];
+                n = this.cells[z][y][x + 2];
                 if (start == null && (this.mask[c.y][c.x] + this.mask[c.y + 1][c.x + 1] == 1 || (c.n && !c.links.has(c.n)))) {
                     start = x;
                 }
@@ -711,8 +731,8 @@ class TriMaze extends Maze {
             start = null;
             end = null;
             for (var y = 0; y < this.height - 1; y++) {
-                c = this.cells[(y    ) * this.width + x];
-                n = this.cells[(y + 1) * this.width + x];
+                c = this.cells[z][y][x];
+                n = this.cells[z][y + 1][x];
                 if (start == null && (this.mask[c.y][c.x] + this.mask[c.y][c.x + 1] == 1 || (c.ne && !c.links.has(c.ne)))) {
                     start = [x, y];
                     cx1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
@@ -744,8 +764,8 @@ class TriMaze extends Maze {
                 if (y < 0) {
                     continue;
                 }   
-                c = this.cells[(y    ) * this.width + x    ];
-                n = this.cells[(y + 1) * this.width + x + 2];
+                c = this.cells[z][y][x];
+                n = this.cells[z][y + 1][x + 2];
                 if (start == null && (this.mask[c.y][c.x] + this.mask[c.y][c.x + 1] == 1 || (c.se && !c.links.has(c.se)))) {
                     start = [x, y];
                     cx1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
@@ -781,7 +801,7 @@ class TriMaze extends Maze {
 
         var line, circle;
 
-        var world = this.get_world();
+        var world = this.get_world(0);
 
         var x, y, x1, y1, x2, y2;
 

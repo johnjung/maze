@@ -1,6 +1,23 @@
 const Flatten = globalThis["@flatten-js/core"];
 const { Point, Polygon, Ray, Segment, Vector } = Flatten;
 
+function build_asteroid(diameter, number_of_points, rand_min, rand_max) {
+    var a, b, d, x, y;
+    var points = []; 
+    for (let p = 0; p < number_of_points; p++) {
+        a = Math.PI * 2 / number_of_points * p;
+        b = Math.random() * Math.PI * 2;
+        d = Math.random() * (rand_max - rand_min) + rand_min;
+        points.push(
+            new Point(
+                Math.cos(a) + (Math.cos(b) * d), 
+                Math.sin(a) + (Math.sin(b) * d)
+            )
+        ); 
+    }   
+    return new Polygon(points);
+}
+
 function get_intersections(point, segments, center) {
     if (point instanceof Point && segments.every(s => s instanceof Segment)) {
         var ray = new Segment(
@@ -147,6 +164,10 @@ function get_torch_segments(segments, center) {
     angles_segments.sort(function (a, b) { 
         return a[0] - b[0]; 
     });
+    // hack, to avoid blind spot.
+    for (let i = 0; i < 50; i++) {
+        angles_segments.push(angles_segments[i]);
+    }
 
     // rotate angles array so that a start point is first. 
     /*
@@ -525,48 +546,126 @@ class TriMaze extends Maze {
         }
 
         this.current_cell = this.cells[5 * this.width + 6];
-        this.direction = 1;
+        this.current_wall = undefined;
+        // e, ne, nw, w, sw, se
+        this.direction = undefined;
+    }
+
+    finish_setup() {
+        // walls
+        // ne, n, nw, sw, s, se
+        // direction
+        // e, ne, nw, w, sw, se
+        if (this.current_cell.links.has(this.current_cell.ne)) {
+            this.current_wall = 0;
+            this.direction = 4;
+        } else if (this.current_cell.links.has(this.current_cell.n)) {
+            this.current_wall = 1;
+            this.direction = 5;
+        } else if (this.current_cell.links.has(this.current_cell.nw)) {
+            this.current_wall = 2;
+            this.direction = 5;
+        } else if (this.current_cell.links.has(this.current_cell.sw)) {
+            this.current_wall = 3;
+            this.direction = 1;
+        } else if (this.current_cell.links.has(this.current_cell.s)) {
+            this.current_wall = 4;
+            this.direction = 1;
+        } else if (this.current_cell.links.has(this.current_cell.se)) {
+            this.current_wall = 5;
+            this.direction = 2;
+        }
     }
 
     turn(d) {
+        // e, ne, nw, w, sw, se
         this.direction += d;
         while (this.direction < 0) {
-            this.direction += 3;
+            this.direction += 6;
         }
-        while (this.direction > 2) {
-            this.direction -= 3;
+        while (this.direction > 5) {
+            this.direction -= 6;
+        }
+        if (this.current_cell.x % 2 == 0) {
+            // jej pick up here.
         }
     }
 
     move_forward() {
-        if (this.direction == 0) {
-            if (x % 2 == 0) {
-                if (this.current_cell.is_linked_to(this.current_cell.se)) {
+        // walls
+        // ne, n, nw, sw, s, se
+        // direction
+        // e, ne, nw, w, sw, se
+        if (this.direction == 0) { // e
+            if (this.current_cell.x % 2 == 0) {
+                if (this.current_wall == 2 && this.current_cell.is_linked_to(this.current_cell.ne)) {
+                    this.current_cell = this.current_cell.ne;
+                    this.current_wall = 3;
+                }
+            } else {
+                if (this.current_wall == 5 && this.current_cell.is_linked_to(this.current_cell.se)) {
                     this.current_cell = this.current_cell.se;
-                }
-            } else {
-                if (this.current_cell.is_linked_to(this.current_cell.ne)) {
-                    this.current_cell = this.current_cell.ne;
+                    this.current_wall = 2;
                 }
             }
-        } else if (this.direction == 1) {
-            if (x % 2 == 0) {
-                if (this.current_cell.is_linked_to(this.current_cell.n)) {
-                    this.current_cell = this.current_cell.n;
+        } else if (this.direction == 1) { // ne
+            if (this.current_cell.x % 2 == 0) {
+                if (this.current_wall == 0 && this.current_cell.is_linked_to(this.current_cell.ne)) {
+                    this.current_cell = this.current_cell.ne;
+                    this.current_wall = 3;
                 }
             } else {
-                if (this.current_cell.is_linked_to(this.current_cell.ne)) {
-                    this.current_cell = this.current_cell.ne;
+                if (this.current_wall = 3 && this.current_cell.is_linked_to(this.current_cell.n)) {
+                    this.current_cell = this.current_cell.n;
+                    this.current_wall = 5;
                 }
             }
-        } else if (this.direction == 2) {
-            if (x % 2 == 0) {
-                if (this.current_cell.is_linked_to(this.current_cell.n)) {
-                    this.current_cell = this.current_cell.n;
-                }
-            } else {
-                if (this.current_cell.is_linked_to(this.current_cell.nw)) {
+        } else if (this.direction == 2) { // nw
+            if (this.current_cell.x % 2 == 0) {
+                if (this.current_wall = 4 && this.current_cell.is_linked_to(this.current_cell.nw)) {
                     this.current_cell = this.current_cell.nw;
+                    this.current_wall = 3;
+                }
+            } else {
+                if (this.current_wall = 3 && this.current_cell.is_linked_to(this.current_cell.n)) {
+                    this.current_cell = this.current_cell.n;
+                    this.current_wall = 4;
+                }
+            }
+        } else if (this.direction == 3) { // w
+            if (this.current_cell.x % 2 == 0) {
+                if (this.current_wall = 2 && this.current_cell.is_linked_to(this.current_cell.nw)) {
+                    this.current_cell = this.current_cell.n;
+                    this.current_wall = 5;
+                }
+            } else {
+                if (this.current_wall = 5 && this.current_cell.is_linked_to(this.current_cell.se)) {
+                    this.current_cell = this.current_cell.se;
+                    this.current_wall = 0;
+                }
+            }
+        } else if (this.direction == 4) { // sw
+            if (this.current_cell.x % 2 == 0) {
+                if (this.current_wall == 0 && this.current_cell.is_linked_to(this.current_cell.s)) {
+                    this.current_cell = this.current_cell.s;
+                    this.current_wall = 1;
+                }
+            } else {
+                if (this.current.wall == 1 && this.current_cell.is_linked_to(this.current_cell.sw)) {
+                    this.current_cell = this.current_cell.sw;
+                    this.current_wall = 0;
+                }
+            }
+        } else if (this.direction == 5) { // se
+            if (this.current_cell.x % 2 == 0) {
+                if (this.current_wall == 0 && this.current_cell.is_linked_to(this.current_cell.s)) {
+                    this.current_cell = this.current_cell.s;
+                    this.current_wall = 1;
+                }
+            } else {
+                if (this.current_wall == 1 && this.current_cell.is_linked_to(this.current_cell.se)) {
+                    this.current_cell = this.current_cell.se;
+                    this.current_wall = 0;   
                 }
             }
         }
@@ -753,7 +852,7 @@ class TriMaze extends Maze {
         }
         return world;
     }
-
+    
     render_to_svg_2d(svg) {
         const svgns = 'http://www.w3.org/2000/svg';
 
@@ -797,13 +896,14 @@ class TriMaze extends Maze {
             line.setAttribute('x2', x2);
             line.setAttribute('y2', y2);
             line.setAttribute('stroke', 'white');
-            line.setAttribute('stroke-width', '8px');
+            line.setAttribute('stroke-width', '2px');
             line.setAttribute('stroke-linecap', 'round');
             line.setAttribute('vector-effect', 'non-scaling-stroke');
             svg.appendChild(line);
         }
 
         // render walls. 
+        /*
         for (let i = 0; i < world.length; i++) {
             x1 = world[i].ps.x;
             y1 = world[i].ps.y;
@@ -820,21 +920,59 @@ class TriMaze extends Maze {
             line.setAttribute('vector-effect', 'non-scaling-stroke');
             svg.appendChild(line);
         }
+        */
 
         // draw current spot.
         x = this.current_cell.x;
         y = this.current_cell.y;
         x1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
         y1 = ((this.height - 1) / 2) - y;
-        circle = document.createElementNS(svgns, 'circle');
-        circle.setAttribute('cx', x1);
-        circle.setAttribute('cy', y1);
-        circle.setAttribute('r', .05);
-        circle.setAttribute('stroke', 'white');
-        circle.setAttribute('stroke-width', '2px');
-        circle.setAttribute('stroke-circlejoin', 'round');
-        circle.setAttribute('vector-effect', 'non-scaling-stroke');
-        svg.appendChild(circle);
+
+        // add offset for wall.
+        // ne, n, nw, sw, s, se
+        if (this.current_wall == 0) {
+            x1 += (0.25 * h);
+        } else if (this.current_wall == 1) {
+            y1 -= 0.5;
+        } else if (this.current_wall == 2) {
+            x1 -= (0.25 * h);
+        } else if (this.current_wall == 3) {
+            x1 -= (0.25 * h);
+        } else if (this.current_wall == 4) {
+            y1 += 0.5;
+        } else if (this.current_wall == 5) {
+            x1 += (0.25 * h);
+        }
+
+        // draw ship.
+        var defs;
+        defs = document.createElementNS(svgns, 'defs');
+        svg.appendChild(defs);
+ 
+        var polygon; 
+        polygon = document.createElementNS(svgns, 'polygon');
+        polygon.setAttribute('id', 'ship');
+        polygon.setAttribute('points', '-0.2,-.16 .28,0 -0.2,.16 -0.1,.08 -0.1,-.08');
+        polygon.setAttribute('stroke', 'none');
+        polygon.setAttribute('fill', 'white');
+        defs.appendChild(polygon);
+
+        // rotate: e, ne, nw, w, sw, se
+        document.getElementById('ship').style.transform = 'rotate(' +
+            [0, 300, 240, 180, 120, 60][this.direction].toString() + 'deg)';
+
+        var use;
+        use = document.createElementNS(svgns, 'use');
+        use.setAttribute('x', x1);
+        use.setAttribute('y', y1);
+        use.setAttribute('x', x1);
+        use.setAttribute('y', y1);
+        use.setAttribute('href', '#ship');
+        svg.appendChild(use);
+
+        
+
+        //var asteroid = build_asteroid(1, 10, .1, .3)
     }
 }
 

@@ -18,53 +18,6 @@ function build_asteroid(diameter, number_of_points, rand_min, rand_max) {
     return new Polygon(points);
 }
 
-function get_intersections(point, segments, center) {
-    if (point instanceof Point && segments.every(s => s instanceof Segment)) {
-        var ray = new Segment(
-            center, 
-            new Point(
-                point.translate(-center.x, -center.y).scale(100, 100).translate(center.x, center.y)
-            )
-        );
-        var intersections = [];
-        for (let i = 0; i < segments.length; i++) {
-            intersections = intersections.concat(ray.intersect.segments[i]);
-        }
-
-        return intersections;
-    } else {
-        throw new Error ('function takes a Point and an Array of Segments.');
-    }
-}
-
-function is_point_in_front(point, segments, center) {
-    /**
-     * Check to see if a point is in front of an Array of line segments
-     * from the perspective of the origin.
-     * @param {Point} point - point to test
-     * @param {Array} segments - array of line segments
-     * @param {Point} center - centerpoint.
-     */
-    if (point instanceof Point && segments.every(s => s instanceof Segment)) {
-        /*
-        var intersections = get_intersections(point, segments, center);
-        return intersections[0].x == point.x && intersections[0].y == point.y;
-        */
-        var ray = new Segment(center, point);
-        for (let i = 0; i < segments.length; i++) {
-            if (!(point.x == segments[i].ps.x && point.y == segments[i].ps.y) &&
-                !(point.x == segments[i].pe.x && point.y == segments[i].pe.y)) {
-                if (ray.intersect(segments[i]).length) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    } else {
-        throw new Error ('function takes a Point and an Array of Segments.');
-    }
-}
-   
 function segment_has_obstruction(segment, segments) {
     /**
      * Check to see if an individual segment is obstructed by any others.
@@ -299,165 +252,6 @@ class TriCell extends Cell {
 }
 
 class Maze {
-    aldous_broder() {
-        let visited = Array(this.width * this.height).fill(false);
-  
-        let c = this.cells[Math.floor(Math.random() * this.width * this.height)];
-        let n = null, neighbors = [];
-
-        var i = 0;
-
-        do {
-            visited[c.y * this.width + c.x] = true;
-            neighbors = c.get_neighbors();
-            n = neighbors[Math.floor(Math.random() * neighbors.length)];
-            if (visited[n.y * this.width + n.x] == false) {
-                c.link(n);
-            }
-            c = n;
-
-            i++;
-            if (i > 1000) {
-                return;
-            }
-        } while (visited.indexOf(false) > -1);
-    }
-
-    wilson() {
-        function get_unvisited_cell(cells, visited, width) {
-            if (visited.indexOf(false) == -1) {
-                return undefined;
-            } else {
-                var c;
-                while (true) {
-                    c = cells[Math.floor(Math.random() * cells.length)];
-                    if (visited[c.y * width + c.x] == false) {
-                        return c;
-                    }
-                }
-            }
-        }
-
-        function get_random_neighbor(c) {
-            do {
-                var n = [c.s, c.e, c.n, c.w][Math.floor(Math.random() * 4)];
-            } while (n == null);
-            return n;
-        }
-
-        function link_path(path, cells, visited, width) {
-            if (!(Array.isArray(path) && path.every(p => Array.isArray(p) && p.length == 2))) { 
-                throw new Error('function takes path, an array of length 2 arrays.');
-            }
-            if (!(Array.isArray(cells) && cells.every(c =>  c instanceof SquareCell))) {
-                throw new Error('function takes cells, an array of SquareCells.');
-            }
-            if (!(Array.isArray(visited) && visited.every(v => typeof v == 'boolean'))) {
-                throw new Error('function take visited, an array of booleans.');
-            }
-            if (!(typeof width == 'number')) {
-                throw new Error('function takes width, a number.');
-            }
- 
-            var i, j, i_coords, j_coords;
-            i_coords = path.shift();
-            if (i_coords == undefined) {
-                return;
-            }
-            i = cells[i_coords[1] * width + i_coords[0]];
-            visited[i_coords[1] * width + i_coords[0]] = true;
-            while (true) {
-                if (path.length == 0) {
-                    return;
-                } else {
-                    j_coords = path.shift();
-                    visited[j_coords[1] * width + j_coords[0]] = true;
-                    j = cells[j_coords[1] * width + j_coords[0]];
-                    i.link(j);
-                    i = j;
-                }
-            }
-        }
-
-        function get_index_of_cell_in_path(path, coords) {
-            for (var i = 0; i < path.length; i++) {
-                if (coords[0] == path[i][0] && coords[1] == path[i][1]) {
-                    return i;
-                }
-            }
-            return -1;
-        }
-
-        var visited = Array(this.width * this.height).fill(false);
-        var path = [];
-        var c, i, j, p;
-
-        // mark a random cell as visited.
-        visited[Math.floor(Math.random() * this.height * this.width)] = true;
-
-        // choose any unvisited cell to start.
-        c = get_unvisited_cell(this.cells, visited, this.width);
-        path.push([c.x, c.y]);
-
-        while (true) {
-            if (visited.indexOf(false) == -1) {
-                return;
-            }
-
-            c = get_random_neighbor(c);
-            path.push([c.x, c.y]);
-
-            if (visited[c.y * this.width + c.x]) {
-                link_path(path, this.cells, visited, this.width);
-                c = get_unvisited_cell(this.cells, visited, this.width);
-                if (c != undefined) {
-                    path.push([c.x, c.y]);
-                }
-            } else {
-                p = get_index_of_cell_in_path(path, [c.x, c.y]);
-                if (p > -1) {
-                    path = path.slice(0, p);
-                }
-                path.push([c.x, c.y]);
-            }
-        }
-    }
-
-    hunt_and_kill() {
-        var visited = new Array(this.width * this.height).fill(false);
-        var n_arr, n;
-
-        var c = this.cells[Math.floor(Math.random() * this.width * this.height)];
-        visited[c.y * this.width + c.x] = true;
-
-        while (true) {
-            if (visited.indexOf(false) == -1) {
-                break;
-            }
-            n_arr = c.get_neighbors().filter((i) => visited[i.y * this.width + i.x] == false);
-            if (n_arr.length > 0) {
-                n = n_arr[Math.floor(Math.random() * n_arr.length)];
-                c.link(n); 
-                visited[n.y * this.width + n.x] = true;
-                c = n;
-            } else {
-                for (let y = this.height - 1; y >= 0; y--) {
-                    for (let x = 0; x < this.width; x++) {
-                        if (visited[y * this.width + x] == false) {
-                            c = this.cells[y * this.width + x];
-                            n_arr = c.get_neighbors().filter((i) => visited[i.y * this.width + i.x] == true);
-                            if (n_arr.length > 0) {
-                                n = n_arr[Math.floor(Math.random() * n_arr.length)];
-                                c.link(n);
-                                visited[c.y * this.width + c.x] = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     recursive_backtracker() {
         var n_arr, n, x, y;
         var stack = [];
@@ -503,6 +297,15 @@ class Maze {
 class TriMaze extends Maze {
     constructor(width, height, mask) {
         super();
+        this.E = 0;
+        this.NE = 1;
+        this.N = 6;
+        this.NW = 2;
+        this.W = 3;
+        this.SW = 4;
+        this.S = 7;
+        this.SE = 5;
+        
         this.width = width;
         this.height = height;
         this.mask = mask;
@@ -547,38 +350,39 @@ class TriMaze extends Maze {
 
         this.current_cell = this.cells[5 * this.width + 6];
         this.current_wall = undefined;
-        // e, ne, nw, w, sw, se
         this.direction = undefined;
     }
 
     finish_setup() {
-        // walls
-        // ne, n, nw, sw, s, se
-        // direction
-        // e, ne, nw, w, sw, se
-        if (this.current_cell.links.has(this.current_cell.ne)) {
-            this.current_wall = 0;
-            this.direction = 4;
-        } else if (this.current_cell.links.has(this.current_cell.n)) {
-            this.current_wall = 1;
-            this.direction = 5;
-        } else if (this.current_cell.links.has(this.current_cell.nw)) {
-            this.current_wall = 2;
-            this.direction = 5;
-        } else if (this.current_cell.links.has(this.current_cell.sw)) {
-            this.current_wall = 3;
-            this.direction = 1;
-        } else if (this.current_cell.links.has(this.current_cell.s)) {
-            this.current_wall = 4;
-            this.direction = 1;
-        } else if (this.current_cell.links.has(this.current_cell.se)) {
-            this.current_wall = 5;
-            this.direction = 2;
+        if (this.current_cell.x % 2 == 1 && this.current_cell.links.has(this.current_cell.ne)) {
+            this.direction = this.NE;
+            this.current_cell = this.current_cell.ne;
+            this.current_wall = this.SW;
+        } else if (this.current_cell.x % 2 == 1 && this.current_cell.links.has(this.current_cell.nw)) {
+            this.direction = this.NW;
+            this.current_cell = this.current_cell.nw;
+            this.current_wall = this.SE;
+        } else if (this.current_cell.x % 2 == 0 && this.current_cell.links.has(this.current_cell.sw)) {
+            this.direction = this.SW;
+            this.current_cell = this.current_cell.sw;
+            this.current_wall = this.NE;
+        } else if (this.current_cell.x % 2 == 0 && this.current_cell.links.has(this.current_cell.se)) {
+            this.direction = this.SE;
+            this.current_cell = this.current_cell.se;
+            this.current_wall = this.NW;
+        } else if (this.current_cell.x % 2 == 0 && this.current_cell.links.has(this.current_cell.n)) {
+            this.direction = this.NE;
+            this.current_cell = this.current_cell.n;
+            this.current_wall = this.S;
+            this.direction = this.NW;
+        } else if (this.current_cell.x % 2 == 1 && this.current_cell.links.has(this.current_cell.s)) {
+            this.direction = this.SW;
+            this.current_cell = this.current_cell.s;
+            this.current_wall = this.N;
         }
     }
 
     turn(d) {
-        // e, ne, nw, w, sw, se
         this.direction += d;
         while (this.direction < 0) {
             this.direction += 6;
@@ -586,88 +390,206 @@ class TriMaze extends Maze {
         while (this.direction > 5) {
             this.direction -= 6;
         }
-        if (this.current_cell.x % 2 == 0) {
-            // jej pick up here.
+        if (
+            this.direction == this.E &&
+            this.current_cell.x % 2 == 1 &&
+            this.current_wall == this.NE && 
+            this.current_cell.links.has(this.current_cell.ne)
+        ) {
+            this.current_cell = this.current_cell.ne;
+            this.current_wall = this.SW;
+        } else if (
+            this.direction == this.E &&
+            this.current_cell.x % 2 == 0 &&
+            this.current_wall == this.SE && 
+            this.current_cell.links.has(this.current_cell.se)
+        ) {
+            this.current_cell = this.current_cell.se;
+            this.current_wall = this.NW;
+        } else if (
+            this.direction == this.NE &&
+            this.current_cell.x % 2 == 1 &&
+            this.current_wall == this.NE &&
+            this.current_cell.links.has(this.current_cell.ne)
+        ) {
+            this.current_cell = this.current_cell.ne;
+            this.current_wall = this.SW;
+        } else if (
+            this.direction == this.NE &&
+            this.current_cell.x % 2 == 0 &&
+            this.current_wall == this.N &&
+            this.current_cell.links.has(this.current_cell.n)
+        ) {
+            this.current_cell = this.current_cell.n;
+            this.current_wall = this.S;
+        } else if (
+            this.direction == this.NW &&
+            this.current_cell.x % 2 == 1 &&
+            this.current_wall == this.NW &&
+            this.current_cell.links.has(this.current_cell.nw)
+        ) {
+            console.log('turn a');
+            this.current_cell = this.current_cell.nw;
+            this.current_wall = this.SE;
+        } else if (
+            this.direction == this.NW &&
+            this.current_cell.x % 2 == 0 &&
+            this.current_wall == this.N &&
+            this.current_cell.links.has(this.current_cell.n)
+        ) {
+            this.current_cell = this.current_cell.n;
+            this.current_wall = this.S;
+        } else if (
+            this.direction == this.W &&
+            this.current_cell.x % 2 == 1 &&
+            this.current_wall == this.NW &&
+            this.current_cell.links.has(this.current_cell.nw)
+        ) {
+            console.log('turn b');
+            this.current_cell = this.current_cell.nw;
+            this.current_wall = this.SE;
+        } else if (
+            this.direction == this.W &&
+            this.current_cell.x % 2 == 0 &&
+            this.current_wall == this.SW &&
+            this.current_cell.links.has(this.current_cell.sw)
+        ) {
+            this.current_cell = this.current_cell.sw;
+            this.current_wall = this.NE;
+        } else if (
+            this.direction == this.SW &&
+            this.current_cell.x % 2 == 1 &&
+            this.current_wall == this.S &&
+            this.current_cell.links.has(this.current_cell.s)
+        ) {
+            this.current_cell = this.current_cell.s;
+            this.current_wall = this.N;
+        } else if (
+            this.direction == this.SW &&
+            this.current_cell.x % 2 == 0 &&
+            this.current_wall == this.SW &&
+            this.current_cell.links.has(this.current_cell.sw)
+        ) {
+            this.current_cell = this.current_cell.sw;
+            this.current_wall = this.NE;
+        } else if (
+            this.direction == this.SE &&
+            this.current_cell.x % 2 == 1 &&
+            this.current_wall == this.S &&
+            this.current_cell.links.has(this.current_cell.s)
+        ) {
+            this.current_cell = this.current_cell.s;
+            this.current_wall = this.N;
+        } else if (
+            this.direction == this.SE &&
+            this.current_cell.x % 2 == 0 &&
+            this.current_wall == this.SE &&
+            this.current_cell.links.has(this.current_cell.se)
+        ) {
+            this.current_cell = this.current_cell.se;
+            this.current_wall = this.NW;
         }
     }
 
     move_forward() {
-        // walls
-        // ne, n, nw, sw, s, se
-        // direction
-        // e, ne, nw, w, sw, se
-        if (this.direction == 0) { // e
-            if (this.current_cell.x % 2 == 0) {
-                if (this.current_wall == 2 && this.current_cell.is_linked_to(this.current_cell.ne)) {
-                    this.current_cell = this.current_cell.ne;
-                    this.current_wall = 3;
-                }
-            } else {
-                if (this.current_wall == 5 && this.current_cell.is_linked_to(this.current_cell.se)) {
-                    this.current_cell = this.current_cell.se;
-                    this.current_wall = 2;
-                }
-            }
-        } else if (this.direction == 1) { // ne
-            if (this.current_cell.x % 2 == 0) {
-                if (this.current_wall == 0 && this.current_cell.is_linked_to(this.current_cell.ne)) {
-                    this.current_cell = this.current_cell.ne;
-                    this.current_wall = 3;
-                }
-            } else {
-                if (this.current_wall = 3 && this.current_cell.is_linked_to(this.current_cell.n)) {
-                    this.current_cell = this.current_cell.n;
-                    this.current_wall = 5;
-                }
-            }
-        } else if (this.direction == 2) { // nw
-            if (this.current_cell.x % 2 == 0) {
-                if (this.current_wall = 4 && this.current_cell.is_linked_to(this.current_cell.nw)) {
-                    this.current_cell = this.current_cell.nw;
-                    this.current_wall = 3;
-                }
-            } else {
-                if (this.current_wall = 3 && this.current_cell.is_linked_to(this.current_cell.n)) {
-                    this.current_cell = this.current_cell.n;
-                    this.current_wall = 4;
-                }
-            }
-        } else if (this.direction == 3) { // w
-            if (this.current_cell.x % 2 == 0) {
-                if (this.current_wall = 2 && this.current_cell.is_linked_to(this.current_cell.nw)) {
-                    this.current_cell = this.current_cell.n;
-                    this.current_wall = 5;
-                }
-            } else {
-                if (this.current_wall = 5 && this.current_cell.is_linked_to(this.current_cell.se)) {
-                    this.current_cell = this.current_cell.se;
-                    this.current_wall = 0;
-                }
-            }
-        } else if (this.direction == 4) { // sw
-            if (this.current_cell.x % 2 == 0) {
-                if (this.current_wall == 0 && this.current_cell.is_linked_to(this.current_cell.s)) {
-                    this.current_cell = this.current_cell.s;
-                    this.current_wall = 1;
-                }
-            } else {
-                if (this.current.wall == 1 && this.current_cell.is_linked_to(this.current_cell.sw)) {
-                    this.current_cell = this.current_cell.sw;
-                    this.current_wall = 0;
-                }
-            }
-        } else if (this.direction == 5) { // se
-            if (this.current_cell.x % 2 == 0) {
-                if (this.current_wall == 0 && this.current_cell.is_linked_to(this.current_cell.s)) {
-                    this.current_cell = this.current_cell.s;
-                    this.current_wall = 1;
-                }
-            } else {
-                if (this.current_wall == 1 && this.current_cell.is_linked_to(this.current_cell.se)) {
-                    this.current_cell = this.current_cell.se;
-                    this.current_wall = 0;   
-                }
-            }
+        if (
+            this.direction == this.E &&
+            this.current_cell.x % 2 == 0 &&
+            this.current_wall == this.SW &&
+            this.current_cell.is_linked_to(this.current_cell.se)
+        ) {
+            this.current_cell = this.current_cell.se;
+            this.current_wall = this.NW;
+        } else if (
+            this.direction == this.E &&
+            this.current_cell.x % 2 == 1 &&
+            this.current_wall == this.NW &&
+            this.current_cell.is_linked_to(this.current_cell.ne)
+        ) {
+            this.current_cell = this.current_cell.ne;
+            this.current_wall = this.SW;
+        } else if (
+            this.direction == this.NE &&
+            this.current_cell.x % 2 == 0 &&
+            this.current_wall == this.SW &&
+            this.current_cell.is_linked_to(this.current_cell.n)
+        ) {
+            this.current_cell = this.current_cell.n;
+            this.current_wall = this.S;
+        } else if (
+            this.direction == this.NE &&
+            this.current_cell.x % 2 == 1 &&
+            this.current_wall == this.S &&
+            this.current_cell.is_linked_to(this.current_cell.ne)
+        ) {
+            this.current_cell = this.current_cell.ne;
+            this.current_wall = this.SW;
+        } else if (
+            this.direction == this.NW &&
+            this.current_cell.x % 2 == 0 &&
+            this.current_wall == this.SE &&
+            this.current_cell.is_linked_to(this.current_cell.n)
+        ) {
+            this.current_cell = this.current_cell.n;
+            this.current_wall = this.S;
+        } else if (
+            this.direction == this.NW &&
+            this.current_cell.x % 2 == 1 &&
+            this.current_wall == this.S &&
+            this.current_cell.is_linked_to(this.current_cell.nw)
+        ) {
+            console.log('forward c');
+            this.current_cell = this.current_cell.nw;
+            this.current_wall = this.SE;
+        } else if (
+            this.direction == this.W &&
+            this.current_cell.x % 2 == 0 &&
+            this.current_wall == this.SE &&
+            this.current_cell.is_linked_to(this.current_cell.sw)
+        ) {
+            this.current_cell = this.current_cell.sw;
+            this.current_wall = this.NE;
+        } else if (
+            this.direction == this.W &&
+            this.current_cell.x % 2 == 1 &&
+            this.current_wall == this.NE &&
+            this.current_cell.is_linked_to(this.current_cell.nw)
+        ) {
+            console.log('forward d');
+            this.current_cell = this.current_cell.nw;
+            this.current_wall = this.SE;
+        } else if (
+            this.direction == this.SW &&
+            this.current_cell.x % 2 == 0 &&
+            this.current_wall ==  this.N &&
+            this.current_cell.is_linked_to(this.current_cell.sw)
+        ) {
+            this.current_cell = this.current_cell.sw;
+            this.current_wall = this.NE;
+        } else if (
+            this.direction == this.SW &&
+            this.current_cell.x % 2 == 1 &&
+            this.current_wall == this.NE &&
+            this.current_cell.is_linked_to(this.current_cell.s)
+        ) {
+            this.current_cell = this.current_cell.s;
+            this.current_wall = this.N; 
+        } else if (
+            this.direction == this.SE &&
+            this.current_cell.x % 2 == 0 &&
+            this.current_wall == this.N &&
+            this.current_cell.is_linked_to(this.current_cell.se)
+        ) {
+            this.current_cell = this.current_cell.se;
+            this.current_wall = this.NW;
+        } else if (
+            this.direction == this.SE &&
+            this.current_cell.x % 2 == 1 &&
+            this.current_wall == this.NW &&
+            this.current_cell.is_linked_to(this.current_cell.s)
+        ) {
+            this.current_cell = this.current_cell.s; 
+            this.current_wall = this.N;
         }
     }
 
@@ -856,6 +778,8 @@ class TriMaze extends Maze {
     render_to_svg_2d(svg) {
         const svgns = 'http://www.w3.org/2000/svg';
 
+        svg.innerHTML = '';
+
         // triangle edge length.
         let h = Math.sqrt(1 + Math.pow(0.5, 2));
 
@@ -929,18 +853,17 @@ class TriMaze extends Maze {
         y1 = ((this.height - 1) / 2) - y;
 
         // add offset for wall.
-        // ne, n, nw, sw, s, se
-        if (this.current_wall == 0) {
+        if (this.current_wall == this.NE) {
             x1 += (0.25 * h);
-        } else if (this.current_wall == 1) {
+        } else if (this.current_wall == this.N) {
             y1 -= 0.5;
-        } else if (this.current_wall == 2) {
+        } else if (this.current_wall == this.NW) {
             x1 -= (0.25 * h);
-        } else if (this.current_wall == 3) {
+        } else if (this.current_wall == this.SW) {
             x1 -= (0.25 * h);
-        } else if (this.current_wall == 4) {
+        } else if (this.current_wall == this.S) {
             y1 += 0.5;
-        } else if (this.current_wall == 5) {
+        } else if (this.current_wall == this.SE) {
             x1 += (0.25 * h);
         }
 
@@ -958,8 +881,22 @@ class TriMaze extends Maze {
         defs.appendChild(polygon);
 
         // rotate: e, ne, nw, w, sw, se
-        document.getElementById('ship').style.transform = 'rotate(' +
-            [0, 300, 240, 180, 120, 60][this.direction].toString() + 'deg)';
+        var deg_str = '0deg';
+        if (this.direction == this.E) {
+            deg_str = '0deg';
+        } else if (this.direction == this.NE) {
+            deg_str = '300deg';
+        } else if (this.direction == this.NW) {
+            deg_str = '240deg';
+        } else if (this.direction == this.W) {
+            deg_str = '180deg';
+        } else if (this.direction == this.SW) {
+            deg_str = '120deg';
+        } else if (this.direction == this.SE) {
+            deg_str = '60deg';
+        }
+ 
+        document.getElementById('ship').style.transform = 'rotate(' + deg_str + ')';
 
         var use;
         use = document.createElementNS(svgns, 'use');
@@ -970,11 +907,8 @@ class TriMaze extends Maze {
         use.setAttribute('href', '#ship');
         svg.appendChild(use);
 
-        
-
         //var asteroid = build_asteroid(1, 10, .1, .3)
     }
 }
 
 module.exports = { TriMaze };
-

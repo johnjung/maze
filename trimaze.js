@@ -428,7 +428,6 @@ class TriMaze extends Maze {
             this.current_wall == this.NW &&
             this.current_cell.links.has(this.current_cell.nw)
         ) {
-            console.log('turn a');
             this.current_cell = this.current_cell.nw;
             this.current_wall = this.SE;
         } else if (
@@ -445,7 +444,6 @@ class TriMaze extends Maze {
             this.current_wall == this.NW &&
             this.current_cell.links.has(this.current_cell.nw)
         ) {
-            console.log('turn b');
             this.current_cell = this.current_cell.nw;
             this.current_wall = this.SE;
         } else if (
@@ -538,7 +536,6 @@ class TriMaze extends Maze {
             this.current_wall == this.S &&
             this.current_cell.is_linked_to(this.current_cell.nw)
         ) {
-            console.log('forward c');
             this.current_cell = this.current_cell.nw;
             this.current_wall = this.SE;
         } else if (
@@ -555,7 +552,6 @@ class TriMaze extends Maze {
             this.current_wall == this.NE &&
             this.current_cell.is_linked_to(this.current_cell.nw)
         ) {
-            console.log('forward d');
             this.current_cell = this.current_cell.nw;
             this.current_wall = this.SE;
         } else if (
@@ -827,7 +823,6 @@ class TriMaze extends Maze {
         }
 
         // render walls. 
-        /*
         for (let i = 0; i < world.length; i++) {
             x1 = world[i].ps.x;
             y1 = world[i].ps.y;
@@ -844,7 +839,6 @@ class TriMaze extends Maze {
             line.setAttribute('vector-effect', 'non-scaling-stroke');
             svg.appendChild(line);
         }
-        */
 
         // draw current spot.
         x = this.current_cell.x;

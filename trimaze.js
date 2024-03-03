@@ -1,6 +1,453 @@
 const Flatten = globalThis["@flatten-js/core"];
 const { Point, Polygon, Ray, Segment, Vector } = Flatten;
 
+alphabet = {
+    '0': [
+        [[0,0],[8,0]],
+        [[8,0],[8,12]],
+        [[8,12],[0,12]],
+        [[0,12],[0,0]],
+        [[0,0],[8,12]]
+    ],
+    '1': [
+        [[4,0],[4,12]],
+        [[4,12],[3,10]]
+    ],
+    '2': [
+        [[0,12],[8,12]],
+        [[8,12],[8,7]],
+        [[8,7],[0,5]],
+        [[0,5],[0,0]],
+        [[0,0],[8,0]]
+    ],
+    '3': [
+        [[0,12],[8,12]],
+        [[8,12],[8,0]],
+        [[8,0],[0,0]],
+        [[0,6],[8,6]]
+    ],
+    '4': [
+        [[0,12],[0,6]],
+        [[0,6],[8,6]],
+        [[8,12],[8,0]]
+    ],
+    '5': [
+        [[0,0],[8,0]],
+        [[8,0],[8,6]],
+        [[8,6],[0,7]],
+        [[0,7],[0,12]],
+        [[0,12],[8,12]]
+    ],
+    '6': [
+        [[0,12],[0,0]],
+        [[0,0],[8,0]],
+        [[8,0],[8,5]],
+        [[8,5],[0,7]]
+    ],
+    '7': [
+        [[0,12],[8,12]],
+        [[8,12],[8,6]],
+        [[8,6],[4,0]]
+    ],
+    '8': [
+        [[0,0],[8,0]],
+        [[8,0],[8,12]],
+        [[8,12],[0,12]],
+        [[0,12],[0,0]],
+        [[0,6],[8,6]]
+    ],
+    '9': [
+        [[8,0],[8,12]],
+        [[8,12],[0,12]],
+        [[0,12],[0,7]],
+        [[0,7],[8,5]]
+    ],
+    '': [
+    ],
+    '.': [
+        [[3,0],[4,0]]
+    ],
+    ',': [
+        [[2,0],[4,2]]
+    ],
+    '-': [
+        [[2,6],[6,6]]
+    ],
+    '+': [
+        [[1,6],[7,6]],
+        [[4,9],[4,3]]
+    ],
+    '!': [
+        [[4,0],[3,2]],
+        [[3,2],[5,2]],
+        [[5,2],[4,0]],
+        [[4,4],[4,12]]
+    ],
+    '#': [
+        [[0,4],[8,4]],
+        [[8,4],[6,2]],
+        [[6,2],[6,10]],
+        [[6,10],[8,8]],
+        [[8,8],[0,8]],
+        [[0,8],[2,10]],
+        [[2,10],[2,2]]
+    ],
+    '^': [
+        [[2,6],[4,12]],
+        [[4,12],[6,6]]
+    ],
+    '=': [
+        [[1,4],[7,4]],
+        [[1,8],[7,8]]
+    ],
+    '*': [
+        [[0,0],[4,12]],
+        [[4,12],[8,0]],
+        [[8,0],[0,8]],
+        [[0,8],[8,8]],
+        [[8,8],[0,0]]
+    ],
+    '_': [
+        [[0,0],[8,0]],
+    ],
+    '/': [
+        [[0,0],[8,12]],
+    ],
+    '\\': [
+        [[0,12],[8,0]],
+    ],
+    '@': [
+        [[8,4],[4,0]],
+        [[4,0],[0,4]],
+        [[0,4],[0,8]],
+        [[0,8],[4,12]],
+        [[4,12],[8,8]],
+        [[8,8],[4,4]],
+        [[4,4],[3,6]]
+    ],
+    '$': [
+        [[6,2],[2,6]],
+        [[2,6],[6,10]],
+        [[4,12],[4,0]]
+    ],
+    '&': [
+        [[8,0],[4,12]],
+        [[4,12],[8,8]],
+        [[8,8],[0,4]],
+        [[0,4],[4,0]],
+        [[4,0],[8,4]]
+    ],
+    '[': [
+        [[6,0],[2,0]],
+        [[2,0],[2,12]],
+        [[2,12],[6,12]]
+    ],
+    ']': [
+        [[2,0],[6,0]],
+        [[6,0],[6,12]],
+        [[6,12],[2,12]]
+    ],
+    '(': [
+        [[6,0],[2,4]],
+        [[2,4],[2,8]],
+        [[2,8],[6,12]]
+    ],
+    ')': [
+        [[2,0],[6,4]],
+        [[6,4],[6,8]],
+        [[6,8],[2,12]]
+    ],
+    '{': [
+        [[6,0],[4,2]],
+        [[4,2],[4,10]],
+        [[4,10],[6,12]],
+        [[2,6],[4,6]]
+    ],
+    '}': [
+        [[4,0],[6,2]],
+        [[6,2],[6,10]],
+        [[6,10],[4,12]],
+        [[6,6],[8,6]]
+    ],
+    '%': [
+        [[0,0],[8,12]],
+        [[2,10],[2,8]],
+        [[6,4],[6,2]]
+    ],
+    '<': [
+        [[6,0],[2,6]],
+        [[2,6],[6,12]]
+    ],
+    '>': [
+        [[2,0],[6,6]],
+        [[6,6],[2,12]]
+    ],
+    '|': [
+        [[4,0],[4,5]],
+        [[4,6],[4,12]]
+    ],
+    ':': [
+        [[4,9],[4,7]],
+        [[4,5],[4,3]]
+    ],
+    ';': [
+        [[4,9],[4,7]],
+        [[4,5],[1,2]]
+    ],
+    '"': [
+        [[2,10],[2,6]],
+        [[6,10],[6,6]]
+    ],
+    '\'': [
+        [[2,6],[6,10]]
+    ],
+    '`': [
+        [[2,10],[6,6]]
+    ],
+    '~': [
+        [[0,4],[2,8]],
+        [[2,8],[6,4]],
+        [[6,4],[8,8]]
+    ],
+    '?': [
+        [[0,8],[4,12]],
+        [[4,12],[8,8]],
+        [[8,8],[4,4]],
+        [[4,1],[4,0]]
+    ],
+    'A': [
+        [[0,0],[0,8]],
+        [[0,8],[4,12]],
+        [[4,12],[8,8]],
+        [[8,8],[8,0]],
+        [[0,4],[8,4]]
+    ],
+    'B': [
+        [[0,0],[0,12]],
+        [[0,12],[4,12]],
+        [[4,12],[8,10]],
+        [[8,10],[4,6]],
+        [[4,6],[8,2]],
+        [[8,2],[4,0]],
+        [[4,0],[0,0]]
+    ],
+    'C': [
+        [[8,0],[0,0]],
+        [[0,0],[0,12]],
+        [[0,12],[8,12]]
+    ],
+    'D': [
+        [[0,0],[0,12]],
+        [[0,12],[4,12]],
+        [[4,12],[8,8]],
+        [[8,8],[8,4]],
+        [[8,4],[4,0]],
+        [[4,0],[0,0]]
+    ],
+    'E': [
+        [[8,0],[0,0]],
+        [[0,0],[0,12]],
+        [[0,12],[8,12]],
+        [[0,6],[6,6]]
+    ],
+    'F': [
+        [[0,0],[0,12]],
+        [[0,12],[8,12]],
+        [[0,6],[6,6]]
+    ],
+    'G': [
+        [[6,6],[8,4]],
+        [[8,4],[8,0]],
+        [[8,0],[0,0]],
+        [[0,0],[0,12]],
+        [[0,12],[8,12]]
+    ],
+    'H': [
+        [[0,0],[0,12]],
+        [[0,6],[8,6]],
+        [[8,12],[8,0]]
+    ],
+    'I': [
+        [[0,0],[8,0]],
+        [[4,0],[4,12]],
+        [[0,12],[8,12]]
+    ],
+    'J': [
+        [[0,4],[4,0]],
+        [[4,0],[8,0]],
+        [[8,0],[8,12]]
+    ],
+    'K': [
+        [[0,0],[0,12]],
+        [[8,12],[0,6]],
+        [[0,6],[6,0]]
+    ],
+    'L': [
+        [[8,0],[0,0]],
+        [[0,0],[0,12]]
+    ],
+    'M': [
+        [[0,0],[0,12]],
+        [[0,12],[4,8]],
+        [[4,8],[8,12]],
+        [[8,12],[8,0]]
+    ],
+    'N': [
+        [[0,0],[0,12]],
+        [[0,12],[8,0]],
+        [[8,0],[8,12]]
+    ],
+    'O': [
+        [[0,0],[0,12]],
+        [[0,12],[8,12]],
+        [[8,12],[8,0]],
+        [[8,0],[0,0]]
+    ],
+    'P': [
+        [[0,0],[0,12]],
+        [[0,12],[8,12]],
+        [[8,12],[8,6]],
+        [[8,6],[0,5]]
+    ],
+    'Q': [
+        [[0,0],[0,12]],
+        [[0,12],[8,12]],
+        [[8,12],[8,4]],
+        [[8,4],[0,0]],
+        [[4,4],[8,0]]
+    ],
+    'R': [
+        [[0,0],[0,12]],
+        [[0,12],[8,12]],
+        [[8,12],[8,6]],
+        [[8,6],[0,5]],
+        [[4,5],[8,0]]
+    ],
+    'S': [
+        [[0,2],[2,0]],
+        [[2,0],[8,0]],
+        [[8,0],[8,5]],
+        [[8,5],[0,7]],
+        [[0,7],[0,12]],
+        [[0,12],[6,12]],
+        [[6,12],[8,10]]
+    ],
+    'T': [
+        [[0,12],[8,12]],
+        [[4,12],[4,0]]
+    ],
+    'U': [
+        [[0,12],[0,2]],
+        [[0,2],[4,0]],
+        [[4,0],[8,2]],
+        [[8,2],[8,12]]
+    ],
+    'V': [
+        [[0,12],[4,0]],
+        [[4,0],[8,12]]
+    ],
+    'W': [
+        [[0,12],[2,0]],
+        [[2,0],[4,4]],
+        [[4,4],[6,0]],
+        [[6,0],[8,12]]
+    ],
+    'X': [
+        [[0,0],[8,12]],
+        [[0,12],[8,0]]
+    ],
+    'Y': [
+        [[0,12],[4,6]],
+        [[4,6],[8,12]],
+        [[4,6],[4,0]]
+    ],
+    'Z': [
+        [[0,12],[8,12]],
+        [[8,12],[0,0]],
+        [[0,0],[8,0]],
+        [[2,6],[6,6]]
+    ]
+}
+
+function get_most_distant_cell(maze, start_cell) {
+    var current_distance, neighbors, x, y;
+
+    // set up distances array- mark all cells undefined.
+    var distances = [];
+    for (let y = 0; y < maze.height; y++) {
+        distances.push(new Array(maze.width).fill(undefined));
+    };
+ 
+    // mark all masked off cells as null.
+    for (let y = 0; y < maze.height; y++) {
+        for (let x = 0; x < maze.width; x++) {
+            if (maze.mask[y][x] == 0) {
+                distances[y][x] = null;
+            }
+        }
+    }
+
+    if (start_cell == null) {
+        while (true) {
+            y = Math.floor(Math.random() * maze.height);
+            x = Math.floor(Math.random() * maze.width);
+            if (distances[y][x] === undefined) {
+                start_cell = maze.cells[0][y][x];
+                break;
+            }
+        }
+    }
+
+    distances[start_cell.y][start_cell.x] = 0;
+    current_distance = 0;
+
+    while (true) {
+        var undefined_found = distances.some((r) => r.some((c) => c === undefined));
+        if (undefined_found == false) {
+            break;
+        }
+
+        // get all cells at the current distance.
+        current_distance_cells = [];
+        for (let y = 0; y < maze.height; y++) { 
+            for (let x = 0; x < maze.width; x++) {
+                if (distances[y][x] == current_distance) {
+                    var links = Array.from(maze.cells[0][y][x].links);
+                    for (let i = 0; i < links.length; i++) {
+                        if (distances[links[i].y][links[i].x] === undefined) {
+                            distances[links[i].y][links[i].x] = current_distance + 1;
+                        }
+                    }
+                }
+            }
+        }
+        current_distance++;
+    }
+
+    max_distance = 0;
+    for (let y = 0; y < maze.height; y++) {
+        for (let x = 0; x < maze.width; x++) {
+            if (distances[y][x] > max_distance) {
+                max_distance = distances[y][x];
+            }
+        }
+    }
+
+    most_distance_cells = [];
+    for (let y = 0; y < maze.height; y++) {
+        for (let x = 0; x < maze.width; x++) {
+            if (distances[y][x] == max_distance) {
+                most_distance_cells.push(maze.cells[0][y][x]);
+            }
+        }
+    }
+
+    return {
+        'max_distance': max_distance,
+        'most_distance_cells': most_distance_cells
+    };
+}
+
 function build_asteroid(diameter, number_of_points, rand_min, rand_max) {
     var a, b, d, x, y;
     var points = []; 
@@ -253,46 +700,60 @@ class TriCell extends Cell {
 }
 
 class Maze {
-    recursive_backtracker() {
-        var n_arr, n, x, y, z;
+    deadends() {
+        var deadends = [];
+        for (let z = 0; z < this.depth; z++) {
+            for (let y = 0; y < this.height; y++) {
+                for (let x = 0; x < this.width; x++) {
+                    if (this.cells[z][y][x].links.size == 1) {
+                        deadends.push(this.cells[z][y][x]);
+                    }
+                }
+            }
+        }
+        return deadends;
+    }
+
+    recursive_backtracker(z, overrides) {
+        var n_arr, n, x, y;
         var stack = [];
         var visited = new Array();
-        var tmp;
-        for (let j = 0; j < this.depth; j++) {
-            tmp = new Array();
-            for (let i = 0; i < this.height; i++) {
-                tmp.push(new Array(this.width).fill(false));
-            }
-            visited.push(tmp);
+        for (let i = 0; i < this.height; i++) {
+            visited.push(new Array(this.width).fill(false));
         }
+
+        /*
+        for (let i = 0; i < overrides.length; i++) {
+            this.mask[overrides[i][1]][overrides[i][0]] = 0;
+            visited[overrides[i][1]][overrides[i][0]] = true;
+        }
+        */
 
         var c = null;
         while (true) {
             if (c != null) {
                 break;
             }
-            z = Math.floor(Math.random() * this.depth);
             y = Math.floor(Math.random() * this.height);
             x = Math.floor(Math.random() * this.width);
             if (this.mask[y][x]) {
                 c = this.cells[z][y][x];
             }
         }
-
         stack.push(c);
-        visited[c.z][c.y][c.x] = true;
+        visited[c.y][c.x] = true;
 
         while (true) {
             if (stack.length == 0) {
                 break;
             }
 
-            n_arr = c.get_neighbors().filter((i) => visited[i.z][i.y][i.x] == false);
+            n_arr = c.get_neighbors().filter((i) => visited[i.y][i.x] == false);
             if (n_arr.length > 0) {
                 n = n_arr[Math.floor(Math.random() * n_arr.length)];
                 c.link(n);
                 stack.push(n);
-                visited[n.z][n.y][n.x] = true;
+                visited[n.y][n.x] = true;
                 c = n;
             } else {
                 stack.pop();
@@ -301,6 +762,11 @@ class Maze {
                 }
             }
         }
+        /*
+        for (let i = 0; i < overrides.length; i++) {
+            this.mask[overrides[i][1]][overrides[i][0]] = 1;
+        }
+        */
     }
 }
 
@@ -368,7 +834,8 @@ class TriMaze extends Maze {
             }
         }
 
-        this.current_cell = this.cells[0][5][6];
+        this.current_cell = undefined;
+        this.goal = undefined;
         this.current_wall = undefined;
         this.direction = undefined;
     }
@@ -613,79 +1080,83 @@ class TriMaze extends Maze {
         let output_grid = [];
         var cx, cy, c;
 
-        for (let y = 0; y < (this.height * 2 + 1); y++) {
-            var row = [];
-            for (let x = 0; x < ((this.width * 2 + 3) + ((this.height - 1) * 2)); x++) {
-                row.push(' ');
+        for (let z = 0; z < this.depth; z++) {
+            console.log('');
+            console.log('--------');
+            console.log('LEVEL ' + z.toString());
+            console.log('--------');
+            console.log('');
+            for (let y = 0; y < (this.height * 2 + 1); y++) {
+                var row = [];
+                for (let x = 0; x < ((this.width * 2 + 3) + ((this.height - 1) * 2)); x++) {
+                    row.push(' ');
+                }
+                output_grid.push(row);
             }
-            output_grid.push(row);
-        }
-
-        // draw all walls 
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                cx = (x * 2 + 2) + ((this.height - 1 - y + 1) * 2 - 2);
-                cy = this.height * 2 - 1 - (y * 2);
-
-                if (x % 2 == 0) {
-                    output_grid[cy - 1][cx - 2] = 'x';
-                    output_grid[cy - 1][cx - 1] = '-';
-                    output_grid[cy - 1][cx    ] = '-';
-                    output_grid[cy - 1][cx + 1] = '-';
-                    output_grid[cy - 1][cx + 2] = 'x';
-                    output_grid[cy    ][cx - 1] = '\\';
-                    output_grid[cy    ][cx + 1] = '/';
-                    output_grid[cy + 1][cx    ] = 'x';
-                } else {
-                    output_grid[cy - 1][cx    ] = 'x';
-                    output_grid[cy    ][cx - 1] = '/';
-                    output_grid[cy    ][cx + 1] = '\\';
-                    output_grid[cy + 1][cx - 2] = 'x';
-                    output_grid[cy + 1][cx - 1] = '-';
-                    output_grid[cy + 1][cx    ] = '-';
-                    output_grid[cy + 1][cx + 1] = '-';
-                    output_grid[cy + 1][cx + 2] = 'x';
-                }
-                if (y == this.current_cell.y && x == this.current_cell.x) {
-                    output_grid[cy][cx] = 'o';
-                }
-            }
-        }
-
-        // erase walls where there are links. 
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                cx = (x * 2 + 2) + ((this.height - 1 - y + 1) * 2 - 2);
-                cy = this.height * 2 - 1 - (y * 2);
-                c = this.cells[0][y][x];
-                if (c.links.has(c.ne)) {
-                    output_grid[cy][cx + 1] = ' ';
-                }
-                if (c.links.has(c.n)) {
-                    output_grid[cy - 1][cx - 1] = ' ';
-                    output_grid[cy - 1][cx    ] = ' ';
-                    output_grid[cy - 1][cx + 1] = ' ';
-                }
-                if (c.links.has(c.nw)) {
-                    output_grid[cy][cx - 1] = ' ';
-                }
-                if (c.links.has(c.sw)) {
-                    output_grid[cy][cx - 1] = ' ';
-                }
-                if (c.links.has(c.s)) {
-                    output_grid[cy + 1][cx - 1] = ' ';
-                    output_grid[cy + 1][cx    ] = ' ';
-                    output_grid[cy + 1][cx + 1] = ' ';
-                }
-                if (c.links.has(c.se)) {
-                    output_grid[cy][cx + 1] = ' ';
+    
+            // draw all walls 
+            for (let y = 0; y < this.height; y++) {
+                for (let x = 0; x < this.width; x++) {
+                    cx = (x * 2 + 2) + ((this.height - 1 - y + 1) * 2 - 2);
+                    cy = this.height * 2 - 1 - (y * 2);
+    
+                    if (x % 2 == 0) {
+                        output_grid[cy - 1][cx - 2] = 'x';
+                        output_grid[cy - 1][cx - 1] = '-';
+                        output_grid[cy - 1][cx    ] = '-';
+                        output_grid[cy - 1][cx + 1] = '-';
+                        output_grid[cy - 1][cx + 2] = 'x';
+                        output_grid[cy    ][cx - 1] = '\\';
+                        output_grid[cy    ][cx + 1] = '/';
+                        output_grid[cy + 1][cx    ] = 'x';
+                    } else {
+                        output_grid[cy - 1][cx    ] = 'x';
+                        output_grid[cy    ][cx - 1] = '/';
+                        output_grid[cy    ][cx + 1] = '\\';
+                        output_grid[cy + 1][cx - 2] = 'x';
+                        output_grid[cy + 1][cx - 1] = '-';
+                        output_grid[cy + 1][cx    ] = '-';
+                        output_grid[cy + 1][cx + 1] = '-';
+                        output_grid[cy + 1][cx + 2] = 'x';
+                    }
                 }
             }
-        }
+    
+            // erase walls where there are links. 
+            for (let y = 0; y < this.height; y++) {
+                for (let x = 0; x < this.width; x++) {
+                    cx = (x * 2 + 2) + ((this.height - 1 - y + 1) * 2 - 2);
+                    cy = this.height * 2 - 1 - (y * 2);
+                    c = this.cells[z][y][x];
+                    if (c.links.has(c.ne)) {
+                        output_grid[cy][cx + 1] = ' ';
+                    }
+                    if (c.links.has(c.n)) {
+                        output_grid[cy - 1][cx - 1] = ' ';
+                        output_grid[cy - 1][cx    ] = ' ';
+                        output_grid[cy - 1][cx + 1] = ' ';
+                    }
+                    if (c.links.has(c.nw)) {
+                        output_grid[cy][cx - 1] = ' ';
+                    }
+                    if (c.links.has(c.sw)) {
+                        output_grid[cy][cx - 1] = ' ';
+                    }
+                    if (c.links.has(c.s)) {
+                        output_grid[cy + 1][cx - 1] = ' ';
+                        output_grid[cy + 1][cx    ] = ' ';
+                        output_grid[cy + 1][cx + 1] = ' ';
+                    }
+                    if (c.links.has(c.se)) {
+                        output_grid[cy][cx + 1] = ' ';
+                    }
+                }
+            }
 
-        // output grid
-        for (let y = 0; y < output_grid.length; y++) {
-            console.log(output_grid[y].join(''));
+            // output grid
+            for (let y = 0; y < output_grid.length; y++) {
+                console.log(output_grid[y].join(''));
+            }
         }
     }
     get_world(z) {
@@ -921,8 +1392,29 @@ class TriMaze extends Maze {
         use.setAttribute('href', '#ship');
         svg.appendChild(use);
 
+        // draw goal. 
+        //x = this.goal_cell.x;
+        //y = this.goal_cell.y;
+        var deadends = this.deadends();
+        var x, y; 
+        for (let i = 0; i < deadends.length; i++) {
+            x = deadends[i].x;
+            y = deadends[i].y;
+            
+            x1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+            y1 = ((this.height - 1) / 2) - y;
+    
+            var circle;
+            circle = document.createElementNS(svgns, 'circle');
+            circle.setAttribute('cx', x1);
+            circle.setAttribute('cy', y1);
+            circle.setAttribute('stroke', 'none');
+            circle.setAttribute('fill', 'white');
+            circle.setAttribute('r', .1);
+            svg.appendChild(circle);
+        }
         //var asteroid = build_asteroid(1, 10, .1, .3)
     }
 }
 
-module.exports = { TriMaze };
+module.exports = { TriMaze, get_most_distant_cell };

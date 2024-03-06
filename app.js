@@ -1,6 +1,6 @@
 const maze = require('./trimaze');
 const Flatten = globalThis["@flatten-js/core"];
-const { Point, Polygon, get_most_distant_cell } = Flatten;
+const { Point, Polygon, get_costs, get_distances } = Flatten;
 
 document.onkeydown = function(e) {
     e = e || window.event;
@@ -31,11 +31,7 @@ document.onkeydown = function(e) {
             m.turn(-3);
             break;
     }
-    m.render_to_svg_2d(document.querySelector('svg'));
-    console.log('fuel: ' + fuel);
-    console.log('money: ' + money);
-    console.log('load: ' + load);
-    console.log('level: ' + level);
+    m.render_to_svg_2d(document.querySelector('svg'), 0, 0, 0, 0);
 }
 
 let width = 20;
@@ -99,16 +95,43 @@ m.recursive_backtracker(0, []);
 // link between levels.
 //m.cells[0][5][9].link(m.cells[1][4][8]);
 
-var cells_from = maze.get_most_distant_cell(m, null);
-var cells_to = maze.get_most_distant_cell(m, cells_from['most_distance_cells'][0]);
-m.current_cell = cells_from['most_distance_cells'][0];
-m.goal_cell = cells_to['most_distance_cells'][0];
-console.log(cells_to['max_distance']);
+var costs = maze.get_costs(m, m.cells[0][5][9]);
+
+// make a cost/distance lookup.
+var deadends = m.deadends();
+var lookup = new Object();
+var c, costs, d, distances, l;
+for (let i = 0; i < deadends.length; i++) {
+    costs = maze.get_costs(m, m.cells[0][deadends[i].y][deadends[i].x]);
+    distances = maze.get_distances(m, m.cells[0][deadends[i].y][deadends[i].x]);
+    for (let j = 0; j < deadends.length; j++) {
+        c = costs[deadends[j].y][deadends[j].x];
+        d = distances[deadends[j].y][deadends[j].x];
+        l = (c * 1) - d;
+        if (Object.hasOwn(lookup, l) == false) {
+            lookup[l] = new Set();
+        }
+        lookup[l].add([deadends[i], deadends[j]]);
+        lookup[l].add([deadends[j], deadends[i]]);
+    }
+}
+// lowest cost. 
+var i = Math.min(...Object.keys(lookup).map((i) => Number(i)));
+// random index.
+var j = Math.floor(Math.random() * lookup[i].size);
+m.current_cell = Array.from(lookup[i])[j][0];
+m.goal_cell = Array.from(lookup[i])[j][1];
+
+// var cells_from = maze.get_most_distant_cell(m, null);
+// var cells_to = maze.get_most_distant_cell(m, cells_from['most_distance_cells'][0]);
+// m.current_cell = cells_from['most_distance_cells'][0];
+// m.goal_cell = cells_to['most_distance_cells'][0];
+// m.current_cell = m.cells[0][5][9];
 m.finish_setup();
 
 
-//m.print_to_console();
-m.render_to_svg_2d(document.querySelector('svg'));
+m.print_to_console();
+m.render_to_svg_2d(document.querySelector('svg'), 0, 0, 0, 0);
 
 
 var fuel = 1000;

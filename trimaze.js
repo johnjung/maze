@@ -369,8 +369,54 @@ alphabet = {
     ]
 }
 
-function get_most_distant_cell(maze, start_cell) {
-    var current_distance, neighbors, x, y;
+function draw_message(svg, message, start_x, start_y, line_height, align_left) {
+    const svgns = 'http://www.w3.org/2000/svg';
+    var scale = 1.0 / 12.0 * line_height;
+    var char;
+    var xpos = start_x;
+    if (align_left) {
+        for (let m = 0; m < message.length; m++) {
+            if (message[m] != ' ') {
+                char = message[m];
+                for (let i = 0; i < alphabet[char].length; i++) {
+                    line = document.createElementNS(svgns, 'line');
+                    line.setAttribute('x1', alphabet[char][i][0][0] * scale + xpos);
+                    line.setAttribute('y1', start_y + (line_height - (alphabet[char][i][0][1] * scale)));
+                    line.setAttribute('x2', alphabet[char][i][1][0] * scale + xpos);
+                    line.setAttribute('y2', start_y + (line_height - (alphabet[char][i][1][1] * scale)));
+                    line.setAttribute('stroke', 'white');
+                    line.setAttribute('stroke-width', '1px');
+                    line.setAttribute('stroke-linecap', 'round');
+                    line.setAttribute('vector-effect', 'non-scaling-stroke');
+                    svg.appendChild(line);
+                }
+            }
+            xpos += line_height;
+        }
+    } else {
+        for (let m = message.length - 1; m >= 0; m--) {
+            if (message[m] != ' ') {
+                char = message[m];
+                for (let i = 0; i < alphabet[char].length; i++) {
+                    line = document.createElementNS(svgns, 'line');
+                    line.setAttribute('x1', alphabet[char][i][0][0] * scale + xpos);
+                    line.setAttribute('y1', start_y + (line_height - (alphabet[char][i][0][1] * scale)));
+                    line.setAttribute('x2', alphabet[char][i][1][0] * scale + xpos);
+                    line.setAttribute('y2', start_y + (line_height - (alphabet[char][i][1][1] * scale)));
+                    line.setAttribute('stroke', 'white');
+                    line.setAttribute('stroke-width', '1px');
+                    line.setAttribute('stroke-linecap', 'round');
+                    line.setAttribute('vector-effect', 'non-scaling-stroke');
+                    svg.appendChild(line);
+                }
+            }
+            xpos -= line_height;
+        }
+    }
+}
+
+function get_distances(maze, start_cell) {
+    var current_distance, x, y;
 
     // set up distances array- mark all cells undefined.
     var distances = [];
@@ -387,28 +433,15 @@ function get_most_distant_cell(maze, start_cell) {
         }
     }
 
-    if (start_cell == null) {
-        while (true) {
-            y = Math.floor(Math.random() * maze.height);
-            x = Math.floor(Math.random() * maze.width);
-            if (distances[y][x] === undefined) {
-                start_cell = maze.cells[0][y][x];
-                break;
-            }
-        }
-    }
-
     distances[start_cell.y][start_cell.x] = 0;
     current_distance = 0;
 
     while (true) {
-        var undefined_found = distances.some((r) => r.some((c) => c === undefined));
-        if (undefined_found == false) {
+        if (distances.some((r) => r.some((c) => c === undefined)) == false) {
             break;
         }
 
         // get all cells at the current distance.
-        current_distance_cells = [];
         for (let y = 0; y < maze.height; y++) { 
             for (let x = 0; x < maze.width; x++) {
                 if (distances[y][x] == current_distance) {
@@ -423,29 +456,58 @@ function get_most_distant_cell(maze, start_cell) {
         }
         current_distance++;
     }
+    return distances;
+}
 
-    max_distance = 0;
+function get_costs(maze, start_cell) {
+    var current_cost, current_cost_cells, found_undefined, x, y;
+
+    // set up costs array- mark all cells undefined.
+    var costs = [];
     for (let y = 0; y < maze.height; y++) {
-        for (let x = 0; x < maze.width; x++) {
-            if (distances[y][x] > max_distance) {
-                max_distance = distances[y][x];
-            }
-        }
-    }
-
-    most_distance_cells = [];
-    for (let y = 0; y < maze.height; y++) {
-        for (let x = 0; x < maze.width; x++) {
-            if (distances[y][x] == max_distance) {
-                most_distance_cells.push(maze.cells[0][y][x]);
-            }
-        }
-    }
-
-    return {
-        'max_distance': max_distance,
-        'most_distance_cells': most_distance_cells
+        costs.push(new Array(maze.width).fill(undefined));
     };
+ 
+    // mark all masked off cells as null.
+    for (let y = 0; y < maze.height; y++) {
+        for (let x = 0; x < maze.width; x++) {
+            if (maze.mask[y][x] == 0) {
+                costs[y][x] = null;
+            }
+        }
+    }
+
+    costs[start_cell.y][start_cell.x] = 0;
+    current_cost = 0;
+
+    while (true) {
+        if (costs.some((r) => r.some((c) => c === undefined)) == false) {
+            break;
+        }
+
+        found_undefined = false;
+        for (let y = 0; y < maze.height; y++) { 
+            for (let x = 0; x < maze.width; x++) {
+                if (costs[y][x] == current_cost) {
+                    var links = Array.from(maze.cells[0][y][x].links);
+                    for (let i = 0; i < links.length; i++) {
+                        if (costs[links[i].y][links[i].x] === undefined) {
+                            found_undefined = true;
+                            if (maze.cells[0][links[i].y][links[i].x].links.size < 3) {
+                                costs[links[i].y][links[i].x] = current_cost;
+                            } else {
+                                costs[links[i].y][links[i].x] = current_cost + 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (found_undefined == false) {
+            current_cost++;
+        }
+    }
+    return costs;
 }
 
 function build_asteroid(diameter, number_of_points, rand_min, rand_max) {
@@ -635,6 +697,89 @@ function get_torch_segments(segments, center) {
     return output;
 }
 
+function get_asteroid_outline(mask) {
+    /**
+     * @param {Array} segments - an array of Segment instances
+     * @param {Point} center - torch position. 
+     */
+
+    // triangle edge length.
+    let h = Math.sqrt(1 + Math.pow(0.5, 2));
+
+    var height = mask.length;
+    var width = mask[0].length;
+
+    var cx, cy;
+
+    var outline = [];
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            if (mask[y][x] == 1) {
+                cx = ((x / 2) - (((width + height) / 2 - 1) / 2) + ((height - 1 - y) / 2)) * h;
+                cy = ((height - 1) / 2) - y;
+                if (x % 2 == 0) {
+                    // draw sw wall.
+                    if (mask[y][x - 1] == 0) {                
+                        outline.push(
+                            new Segment(
+                                new Point(cx - (0.5 * h), cy - 0.5),
+                                new Point(cx, cy + 0.5)
+                            )
+                        );
+                    }
+                    // draw se wall.
+                    if (mask[y][x + 1] == 0) {
+                        outline.push(
+                            new Segment(
+                                new Point(cx + (0.5 * h), cy - 0.5),
+                                new Point(cx, cy + 0.5)
+                            )
+                        );
+                    }
+                    // draw n wall.
+                    if (mask[y + 1][x + 1] == 0) {
+                        outline.push(
+                            new Segment(
+                                new Point(cx - (0.5 * h), cy - 0.5),
+                                new Point(cx + (0.5 * h), cy - 0.5)
+                            )
+                        );
+                    }
+                } else {
+                    // draw nw wall.
+                    if (mask[y][x - 1] == 0) {
+                        outline.push(
+                            new Segment(
+                                new Point(cx - (0.5 * h), cy + 0.5),
+                                new Point(cx, cy - 0.5)
+                            )
+                        );
+                    }
+                    // draw ne wall.
+                    if (mask[y][x + 1] == 0) {
+                        outline.push(
+                            new Segment(
+                                new Point(cx + (0.5 * h), cy + 0.5),
+                                new Point(cx, cy - 0.5)
+                            )
+                        );
+                    }
+                    // draw s wall.
+                    if (mask[y - 1][x - 1] == 0) { 
+                        outline.push(
+                            new Segment(
+                                new Point(cx - (0.5 * h), cy + 0.5),
+                                new Point(cx + (0.5 * h), cy + 0.5)
+                            )
+                        );
+                    }
+                }
+            }
+        }
+    }
+    return outline;
+}
+
 class Cell {
     link(cell, bidi=true) {
         this.links.add(cell);
@@ -767,6 +912,25 @@ class Maze {
             this.mask[overrides[i][1]][overrides[i][0]] = 1;
         }
         */
+    }
+
+    // jej
+    goal_is_visible(segments) {
+        let h = Math.sqrt(1 + Math.pow(0.5, 2));
+        var x1 = ((this.current_cell.x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - this.current_cell.y) / 2)) * h;
+        var y1 = ((this.height - 1) / 2) - this.current_cell.y;
+        var x2 = ((this.goal_cell.x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - this.goal_cell.y) / 2)) * h;
+        var y2 = ((this.height - 1) / 2) - this.goal_cell.y;
+    
+        // if a line from the current cell to the goal is unbroken by any wall
+        // segment, then the goal is visible.
+        var line_of_sight = new Segment(new Point(x1, y1), new Point(x2, y2));
+        for (let i = 0; i < segments.length; i++) {
+            if (line_of_sight.intersect(segments[i]).length) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 
@@ -1262,7 +1426,7 @@ class TriMaze extends Maze {
         return world;
     }
     
-    render_to_svg_2d(svg) {
+    render_to_svg_2d(svg, fuel, load, money, level) {
         const svgns = 'http://www.w3.org/2000/svg';
 
         svg.innerHTML = '';
@@ -1314,11 +1478,12 @@ class TriMaze extends Maze {
         }
 
         // render walls. 
-        for (let i = 0; i < world.length; i++) {
-            x1 = world[i].ps.x;
-            y1 = world[i].ps.y;
-            x2 = world[i].pe.x;
-            y2 = world[i].pe.y;
+        var outline = get_asteroid_outline(this.mask);
+        for (let i = 0; i < outline.length; i++) {
+            x1 = outline[i].ps.x;
+            y1 = outline[i].ps.y;
+            x2 = outline[i].pe.x;
+            y2 = outline[i].pe.y;
             line = document.createElementNS(svgns, 'line');
             line.setAttribute('x1', x1);
             line.setAttribute('y1', y1);
@@ -1392,15 +1557,11 @@ class TriMaze extends Maze {
         use.setAttribute('href', '#ship');
         svg.appendChild(use);
 
-        // draw goal. 
-        //x = this.goal_cell.x;
-        //y = this.goal_cell.y;
-        var deadends = this.deadends();
-        var x, y; 
-        for (let i = 0; i < deadends.length; i++) {
-            x = deadends[i].x;
-            y = deadends[i].y;
-            
+        // draw goal.
+        if (this.goal_is_visible(world)) {
+            x = this.goal_cell.x;
+            y = this.goal_cell.y;
+                
             x1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
             y1 = ((this.height - 1) / 2) - y;
     
@@ -1413,8 +1574,13 @@ class TriMaze extends Maze {
             circle.setAttribute('r', .1);
             svg.appendChild(circle);
         }
+
         //var asteroid = build_asteroid(1, 10, .1, .3)
+        draw_message(svg, 'FUEL: ' + fuel, -9, -9, 0.5, true);
+        draw_message(svg, 'LOAD: ' + load,  9, -9, 0.5, false);
+        draw_message(svg, 'MONEY: ' + money, -9,  9, 0.5, true);
+        draw_message(svg, 'LEVEL: ' + level,  9,  9, 0.5, false);
     }
 }
 
-module.exports = { TriMaze, get_most_distant_cell };
+module.exports = { TriMaze, get_costs, get_distances };

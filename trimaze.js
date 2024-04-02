@@ -415,6 +415,15 @@ function draw_message(svg, message, start_x, start_y, line_height, align_left) {
     }
 }
 
+// jej
+function get_canvas_x_y(x, y, width, height) {
+    let h = Math.sqrt(1 + Math.pow(0.5, 2));
+    return [
+        (x - (width / 2)) * (0.5 * h),
+        ((height - 1) / 2) - y
+    ];
+}
+
 function get_distances(maze, start_cell) {
     var current_distance, x, y;
 
@@ -550,153 +559,6 @@ function segment_has_obstruction(segment, segments) {
     }
 }
 
-function get_torch_polygon(segments, center) {
-    /**
-     * Get a polygon of torch outline.
-     * @param {Array} segments - an array of Segment instances
-     * @param {Point} center - torch position. 
-     */
-
-    var iota = Math.PI / 720;
-
-    //collect all angles.
-    var angles = [];
-    var a;
-    for (let i = 0; i < segments.length; i++) {
-        a = Math.atan2(segments[i].ps.y - center.y, segments[i].ps.x - center.x);
-        angles.push(a - iota);
-        angles.push(a + iota);
-        a = Math.atan2(segments[i].pe.y - center.y, segments[i].pe.x - center.x);
-        angles.push(a - iota);
-        angles.push(a + iota);
-    }
-    angles.sort(function (a, b) { 
-        return a - b; 
-    });
-
-    // return polygon points for all intersections.
-    var output = [];
-
-    var intersections, inter, r;
-    for (let i = 0; i < angles.length; i++) {
-        intersections = [];
-        r = new Ray(
-            center,
-            new Vector(-Math.sin(angles[i]), Math.cos(angles[i]))
-        );
-        for (let j = 0; j < segments.length; j++) {
-            inter = r.intersect(segments[j]);
-            if (inter.length) {
-                intersections.push(inter[0]);
-            }
-        }
-        intersections.sort(function (a, b) {
-            return center.distanceTo(a)[0] - center.distanceTo(b)[0];
-        });
-        if (intersections.length) {
-            output.push(intersections[0]);
-        }
-    }
-    return output;
-}
-
-function get_torch_segments(segments, center) {
-    /**
-     * Get an array of wall segments lit by a torch.
-     * @param {Array} segments - an array of Segment instances
-     * @param {Point} center - torch position. 
-     */
-
-    var iota = Math.PI / 720;
-
-    //collect all angles.
-    var angles_segments = [];
-    var a;
-    for (let i = 0; i < segments.length; i++) {
-        a = Math.atan2(segments[i].ps.y - center.y, segments[i].ps.x - center.x);
-        angles_segments.push([a - iota, segments[i]]);
-        angles_segments.push([a + iota, segments[i]]);
-        a = Math.atan2(segments[i].pe.y - center.y, segments[i].pe.x - center.x);
-        angles_segments.push([a - iota, segments[i]]);
-        angles_segments.push([a + iota, segments[i]]);
-    }
-    if (angles_segments.length == 0) {
-        return;
-    }
-    angles_segments.sort(function (a, b) { 
-        return a[0] - b[0]; 
-    });
-    // hack, to avoid blind spot.
-    for (let i = 0; i < 50; i++) {
-        angles_segments.push(angles_segments[i]);
-    }
-
-    // rotate angles array so that a start point is first. 
-    /*
-    var a, b, inter, intersections, s, tmp;
-    while (true) {
-        //a = angles_segments[0][0];
-        s = angles_segments[0][1];
-        if (!segment_has_obstruction(s, segments)) {
-            break;
-        b = Math.atan2(s.pe.y, s.pe.x);
-        if (a < b) {
-            tmp = s.ps.clone();
-            s.ps = s.pe;
-            s.pe = tmp;
-        }
-        } else {
-            angles_segments.unshift(angles_segments.pop());
-        }
-    }
-    */
-
-    // return segments.
-    var output = [];
-
-    var intersections, inter, r;
-    var line_start = null;
-    var previous_point = null;
-    var previous_segment = null;
-
-    for (let i = 0; i < angles_segments.length; i++) {
-        intersections = [];
-        r = new Ray(
-            center,
-            new Vector(-Math.sin(angles_segments[i][0]), Math.cos(angles_segments[i][0]))
-        );
-        for (let j = 0; j < segments.length; j++) {
-            inter = r.intersect(segments[j]);
-            if (inter.length) {
-                intersections.push([inter[0], segments[j]]);
-            }
-        }
-        intersections.sort(function (a, b) {
-            return center.distanceTo(a[0])[0] - center.distanceTo(b[0])[0];
-        });
-        if (intersections.length) {
-            if (line_start == null) {
-                line_start = intersections[0][0];
-                previous_point = intersections[0][0];
-                previous_segment = intersections[0][1];
-            } else {
-                if (previous_segment != intersections[0][1]) {
-                    output.push(
-                        new Segment(
-                            line_start,
-                            previous_point
-                        )
-                    );
-                    line_start = intersections[0][0];
-                }
-            }
-            previous_point = intersections[0][0];
-            previous_segment = intersections[0][1];
-        }
-    }
-    return output;
-}
-
 function get_asteroid_outline(mask) {
     /**
      * @param {Array} segments - an array of Segment instances
@@ -715,9 +577,9 @@ function get_asteroid_outline(mask) {
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             if (mask[y][x] == 1) {
-                cx = ((x / 2) - (((width + height) / 2 - 1) / 2) + ((height - 1 - y) / 2)) * h;
+                cx = (x - (width / 2)) * (0.5 * h);
                 cy = ((height - 1) / 2) - y;
-                if (x % 2 == 0) {
+                if (x % 2 == y % 2) {
                     // draw sw wall.
                     if (mask[y][x - 1] == 0) {                
                         outline.push(
@@ -737,7 +599,7 @@ function get_asteroid_outline(mask) {
                         );
                     }
                     // draw n wall.
-                    if (mask[y + 1][x + 1] == 0) {
+                    if (mask[y + 1][x] == 0) {
                         outline.push(
                             new Segment(
                                 new Point(cx - (0.5 * h), cy - 0.5),
@@ -765,7 +627,7 @@ function get_asteroid_outline(mask) {
                         );
                     }
                     // draw s wall.
-                    if (mask[y - 1][x - 1] == 0) { 
+                    if (mask[y - 1][x] == 0) { 
                         outline.push(
                             new Segment(
                                 new Point(cx - (0.5 * h), cy + 0.5),
@@ -914,12 +776,11 @@ class Maze {
         */
     }
 
-    // jej
     goal_is_visible(segments) {
         let h = Math.sqrt(1 + Math.pow(0.5, 2));
-        var x1 = ((this.current_cell.x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - this.current_cell.y) / 2)) * h;
+        var x1 = (((this.width - 1) / 2) - this.current_cell.x) * h;
         var y1 = ((this.height - 1) / 2) - this.current_cell.y;
-        var x2 = ((this.goal_cell.x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - this.goal_cell.y) / 2)) * h;
+        var x2 = (((this.width - 1) / 2) - this.goal_cell.x) * h;
         var y2 = ((this.height - 1) / 2) - this.goal_cell.y;
     
         // if a line from the current cell to the goal is unbroken by any wall
@@ -970,27 +831,27 @@ class TriMaze extends Maze {
                 for (let x = 0; x < this.width; x++) {
                     if (this.mask[y][x]) {
                         // ne
-                        if (x % 2 == 1 && x < this.width - 1 && this.mask[y][x + 1]) {
+                        if (x % 2 != y % 2 && x < this.width - 1 && this.mask[y][x + 1]) {
                             this.cells[z][y][x].ne = this.cells[z][y][x + 1];
                         }
                         // n
-                        if (x % 2 == 0 && y < (this.height - 1) && x < (this.width - 1) && this.mask[y + 1][x + 1]) {
-                            this.cells[z][y][x].n = this.cells[z][y + 1][x + 1];
+                        if (x % 2 == y % 2 && y < (this.height - 1) && x < this.width && this.mask[y + 1][x]) {
+                            this.cells[z][y][x].n = this.cells[z][y + 1][x];
                         }
                         // nw
-                        if (x % 2 == 1 && x > 0 && this.mask[y][x - 1]) {
+                        if (x % 2 != y % 2 && x > 0 && this.mask[y][x - 1]) {
                             this.cells[z][y][x].nw = this.cells[z][y][x - 1];
                         }
                         // sw 
-                        if (x % 2 == 0 && x > 0 && this.mask[y][x - 1]) {
+                        if (x % 2 == y % 2 && x > 0 && this.mask[y][x - 1]) {
                             this.cells[z][y][x].sw = this.cells[z][y][x - 1];
                         }
                         // s
-                        if (x % 2 == 1 && y > 0 && x > 0 && this.mask[y - 1][x - 1]) {
-                            this.cells[z][y][x].s = this.cells[z][y - 1][x - 1];
+                        if (x % 2 != y % 2 && y > 0 && x >= 0 && this.mask[y - 1][x]) {
+                            this.cells[z][y][x].s = this.cells[z][y - 1][x];
                         }
                         // se
-                        if (x % 2 == 0 && x < (this.width - 1) && this.mask[y][x + 1]) {
+                        if (x % 2 == y % 2 && x < (this.width - 1) && this.mask[y][x + 1]) {
                             this.cells[z][y][x].se = this.cells[z][y][x + 1];
                         }
                     }
@@ -1252,7 +1113,7 @@ class TriMaze extends Maze {
             console.log('');
             for (let y = 0; y < (this.height * 2 + 1); y++) {
                 var row = [];
-                for (let x = 0; x < ((this.width * 2 + 3) + ((this.height - 1) * 2)); x++) {
+                for (let x = 0; x < (this.width * 2 + 3); x++) {
                     row.push(' ');
                 }
                 output_grid.push(row);
@@ -1261,10 +1122,10 @@ class TriMaze extends Maze {
             // draw all walls 
             for (let y = 0; y < this.height; y++) {
                 for (let x = 0; x < this.width; x++) {
-                    cx = (x * 2 + 2) + ((this.height - 1 - y + 1) * 2 - 2);
+                    cx = x * 2 + 2;
                     cy = this.height * 2 - 1 - (y * 2);
     
-                    if (x % 2 == 0) {
+                    if (x % 2 == y % 2)  {
                         output_grid[cy - 1][cx - 2] = 'x';
                         output_grid[cy - 1][cx - 1] = '-';
                         output_grid[cy - 1][cx    ] = '-';
@@ -1289,7 +1150,7 @@ class TriMaze extends Maze {
             // erase walls where there are links. 
             for (let y = 0; y < this.height; y++) {
                 for (let x = 0; x < this.width; x++) {
-                    cx = (x * 2 + 2) + ((this.height - 1 - y + 1) * 2 - 2);
+                    cx = x * 2 + 2;
                     cy = this.height * 2 - 1 - (y * 2);
                     c = this.cells[z][y][x];
                     if (c.links.has(c.ne)) {
@@ -1323,6 +1184,7 @@ class TriMaze extends Maze {
             }
         }
     }
+    // jej need to fix this.
     get_world(z) {
         // triangle edge length.
         let h = Math.sqrt(1 + Math.pow(0.5, 2));
@@ -1332,94 +1194,40 @@ class TriMaze extends Maze {
         var c, n, cx, cx1, cx2, cy, cy1, cy2, line, circle;
         var start, end, x_min;
 
-        // horizontal
-        for (var y = 0; y < this.height - 1; y++) {
-            start = null;
-            end = null;
-            for (var x = 0; x < this.width - 3; x += 2) {
+        for (var y = 0; y < (this.height - 1); y++) {
+            for (var x = 0; x < (this.width - 1); x++) {
                 c = this.cells[z][y][x];
-                n = this.cells[z][y][x + 2];
-                if (start == null && (this.mask[c.y][c.x] + this.mask[c.y + 1][c.x + 1] == 1 || (c.n && !c.links.has(c.n)))) {
-                    start = x;
-                }
-                if (start != null && (this.mask[n.y][n.x] + this.mask[n.y + 1][n.x + 1] == 0 || (n.n && n.links.has(n.n)))) {
-                    end = x;
-                }
-                if (start != null && end != null) {
-                    cx1 = ((start / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
-                    cx2 = ((end   / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
-                    cy = ((this.height - 1) / 2) - y;
-                    world.push(
+                cx = (x - (this.width / 2)) * (.5 * h);
+                cy = ((this.height - 1) / 2) - y;
+                // north
+                if (x % 2 == y % 2 && (this.mask[c.y][c.x] + this.mask[c.y + 1][c.x] == 1 || (c.n && !c.links.has(c.n)))) {
+                    world.push([
+                        'wall_' + x + '_' + y + '_n' + ' wall_' + x + '_' + (y+1) + '_s',
                         new Segment(
-                            new Point(cx1 - (.5 * h), cy - .5),
-                            new Point(cx2 + (.5 * h), cy - .5)
+                            new Point(cx - (.5 * h), cy - .5),
+                            new Point(cx + (.5 * h), cy - .5)
                         )
-                    );
-                    start = null;
-                    end = null;
+                    ]);
                 }
-            }
-        }
-
-        // diagonal upper left to lower right
-        for (var x = 1; x < this.width - 2; x += 2) {
-            start = null;
-            end = null;
-            for (var y = 0; y < this.height - 1; y++) {
-                c = this.cells[z][y][x];
-                n = this.cells[z][y + 1][x];
-                if (start == null && (this.mask[c.y][c.x] + this.mask[c.y][c.x + 1] == 1 || (c.ne && !c.links.has(c.ne)))) {
-                    start = [x, y];
-                    cx1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
-                    cy1 = ((this.height - 1) / 2) - y;
-                }
-                if (start != null && (this.mask[n.y][n.x] + this.mask[n.y][n.x + 1] == 0 || (n.ne && n.links.has(n.ne)))) {
-                    end = [x, y];
-                    cx2 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
-                    cy2 = ((this.height - 1) / 2) - y;
-                }
-                if (start != null && end != null) {
-                    world.push(
+                // northeast
+                if (x % 2 != y % 2 && (this.mask[c.y][c.x] + this.mask[c.y][c.x + 1] == 1 || (c.ne && !c.links.has(c.ne)))) {
+                    world.push([
+                        'wall_' + x + '_' + y + '_ne' + ' wall_' + (x+1) + '_' + y + '_sw',
                         new Segment(
-                            new Point(cx1 + (.5 * h), cy1 + .5),
-                            new Point(cx2, cy2 - .5)
+                            new Point(cx, cy - .5),
+                            new Point(cx + (.5 * h), cy + .5)
                         )
-                    );
-                    start = null;
-                    end = null;
+                    ]);
                 }
-            }
-        }
-
-        // diagonal lower left to upper right
-        for (var y_min = this.height - 1; y_min > (0 - this.width); y_min--) {
-            start = null;
-            end = null;
-            for (var x = 0, y = y_min; x < this.width - 2 && y < this.height - 1; x += 2, y++) {
-                if (y < 0) {
-                    continue;
-                }   
-                c = this.cells[z][y][x];
-                n = this.cells[z][y + 1][x + 2];
-                if (start == null && (this.mask[c.y][c.x] + this.mask[c.y][c.x + 1] == 1 || (c.se && !c.links.has(c.se)))) {
-                    start = [x, y];
-                    cx1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
-                    cy1 = ((this.height - 1) / 2) - y;
-                }
-                if (start != null && (this.mask[n.y][n.x] + this.mask[n.y][n.x + 1] == 0 || (n.se && n.links.has(n.se)))) {
-                    end = [x, y];
-                    cx2 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
-                    cy2 = ((this.height - 1) / 2) - y;
-                }
-                if (start != null && end != null) {
-                    world.push(
+                // southeast
+                if (x % 2 == y % 2 && (this.mask[c.y][c.x] + this.mask[c.y][c.x + 1] == 1 || (c.se && !c.links.has(c.se)))) {
+                    world.push([
+                        'wall_' + x + '_' + y + '_se' + ' wall_' + (x+1) + '_' + y + '_nw',
                         new Segment(
-                            new Point(cx1, cy1 + .5),
-                            new Point(cx2 + (.5 * h), cy2 - .5)
+                            new Point(cx, cy + .5),
+                            new Point(cx + (.5 * h), cy - .5)
                         )
-                    );
-                    start = null;
-                    end = null;
+                    ]);
                 }
             }
         }
@@ -1438,59 +1246,28 @@ class TriMaze extends Maze {
 
         var world = this.get_world(0);
 
-        var x, y, x1, y1, x2, y2;
+        var c, x, y, x1, y1, x2, y2;
 
         x = this.current_cell.x;
         y = this.current_cell.y;
-        x1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+        x1 = (((this.width - 1) / 2) - x) * h;
         y1 = ((this.height - 1) / 2) - y;
 
-        // render torch polygon.
-        var torch_outline = get_torch_polygon(world, new Point(x1, y1));
-        var point_str = [];
-        for (var i = 0; i < torch_outline.length; i++) {
-            point_str.push(torch_outline[i].x.toString() + ',' + torch_outline[i].y.toString());
-        }
-        var polygon; 
-        polygon = document.createElementNS(svgns, 'polygon');
-        polygon.setAttribute('points', point_str.join(' '));
-        polygon.setAttribute('stroke', 'none');
-        polygon.setAttribute('fill', 'rgb(42, 42, 42)');
-        svg.appendChild(polygon);
-
         // render walls. 
-        var torch_segments = get_torch_segments(world, new Point(x1, y1));
-        for (let i = 0; i < torch_segments.length; i++) {
-            x1 = torch_segments[i].ps.x;
-            y1 = torch_segments[i].ps.y;
-            x2 = torch_segments[i].pe.x;
-            y2 = torch_segments[i].pe.y;
+        for (let i = 0; i < world.length; i++) {
+            c = world[i][0],
+            x1 = world[i][1].ps.x;
+            y1 = world[i][1].ps.y;
+            x2 = world[i][1].pe.x;
+            y2 = world[i][1].pe.y;
             line = document.createElementNS(svgns, 'line');
             line.setAttribute('x1', x1);
             line.setAttribute('y1', y1);
             line.setAttribute('x2', x2);
             line.setAttribute('y2', y2);
+            line.setAttribute('class', c);
             line.setAttribute('stroke', 'white');
             line.setAttribute('stroke-width', '2px');
-            line.setAttribute('stroke-linecap', 'round');
-            line.setAttribute('vector-effect', 'non-scaling-stroke');
-            svg.appendChild(line);
-        }
-
-        // render walls. 
-        var outline = get_asteroid_outline(this.mask);
-        for (let i = 0; i < outline.length; i++) {
-            x1 = outline[i].ps.x;
-            y1 = outline[i].ps.y;
-            x2 = outline[i].pe.x;
-            y2 = outline[i].pe.y;
-            line = document.createElementNS(svgns, 'line');
-            line.setAttribute('x1', x1);
-            line.setAttribute('y1', y1);
-            line.setAttribute('x2', x2);
-            line.setAttribute('y2', y2);
-            line.setAttribute('stroke', 'white');
-            line.setAttribute('stroke-width', '1px');
             line.setAttribute('stroke-linecap', 'round');
             line.setAttribute('vector-effect', 'non-scaling-stroke');
             svg.appendChild(line);
@@ -1499,7 +1276,7 @@ class TriMaze extends Maze {
         // draw current spot.
         x = this.current_cell.x;
         y = this.current_cell.y;
-        x1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+        x1 = (((this.width - 1) / 2) - x) * h;
         y1 = ((this.height - 1) / 2) - y;
 
         // add offset for wall.
@@ -1562,7 +1339,7 @@ class TriMaze extends Maze {
             x = this.goal_cell.x;
             y = this.goal_cell.y;
                 
-            x1 = ((x / 2) - (((this.width + this.height) / 2 - 1) / 2) + ((this.height - 1 - y) / 2)) * h;
+            x1 = (((this.width - 1) / 2) - x) * h;
             y1 = ((this.height - 1) / 2) - y;
     
             var circle;
